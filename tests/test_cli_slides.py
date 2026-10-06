@@ -3,7 +3,7 @@ import json
 import pytest
 from helpers import entry, ledger, needs_chrome, tkus_ledger_files
 
-from tkus_vis.cli import main
+from tkus_vis.cli import currency_prefixes, main
 
 
 def slides(repo_path, out):
@@ -44,3 +44,14 @@ def test_no_ledger_writes_no_slides(make_repo, tmp_path, capsys):
 def test_collect_errors_exit_2(tmp_path, capsys):
     assert slides(tmp_path, tmp_path / "out") == 2
     assert "not a git repository" in capsys.readouterr().err
+
+
+def test_currency_prefixes_never_collide():
+    # "€" and "£" both slug to "currency"; "USD" and "usd" both to "usd".
+    assert currency_prefixes(["€", "£", "USD", "usd", "../../x"]) == [
+        "currency",
+        "currency-2",
+        "usd",
+        "usd-2",
+        "x",
+    ]

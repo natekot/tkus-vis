@@ -81,8 +81,19 @@ def _build(args: argparse.Namespace) -> int:
     return 0
 
 
-def _slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "currency"
+def currency_prefixes(currencies: list[str]) -> list[str]:
+    """File-name prefixes for each currency's slides: path-safe, and never shared."""
+    taken: set[str] = set()
+    prefixes = []
+    for currency in currencies:
+        base = re.sub(r"[^a-z0-9]+", "-", currency.lower()).strip("-") or "currency"
+        name, n = base, 1
+        while name in taken:
+            n += 1
+            name = f"{base}-{n}"
+        taken.add(name)
+        prefixes.append(name)
+    return prefixes
 
 
 def _slides(args: argparse.Namespace) -> int:
@@ -93,8 +104,9 @@ def _slides(args: argparse.Namespace) -> int:
         print(f"tkus-vis: no tkus ledger at {dataset.ref}; cost unknown, so no slides were written")
         return 0
     pages = []
-    for view in dataset.views:
-        prefix = f"{_slug(view.currency)}-" if len(dataset.views) > 1 else ""
+    prefixes = currency_prefixes([v.currency for v in dataset.views])
+    for view, name in zip(dataset.views, prefixes, strict=True):
+        prefix = f"{name}-" if len(dataset.views) > 1 else ""
         for slide in slides_for(dataset, view):
             pages.append((prefix + slide.slug, slide_html(slide, chart_svg(slide))))
     try:
