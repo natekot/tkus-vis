@@ -82,6 +82,17 @@ class Entry:
         return self.until or self.at
 
 
+@dataclass(frozen=True)
+class Snapshot:
+    """Every ledger file in one commit of one repository: the collect stage's output."""
+
+    repo: str  # display name
+    ref: str  # the ref that was read, e.g. origin/main
+    commit: str  # the full SHA it resolved to
+    default_branch: str  # as git names it; compare via branch_key()
+    files: dict[str, str]  # ledger path -> text, for every .jsonl under .tkus/
+
+
 def parse_ledger(path: str, text: str) -> tuple[list[Entry], list[Problem]]:
     """Every entry in one ledger file. A corrupt line is reported, never fatal."""
     identity, branch = split_ledger_path(path)
