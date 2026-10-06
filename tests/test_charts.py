@@ -76,7 +76,13 @@ def test_untrusted_names_are_escaped_in_svg():
     s = slides(
         {
             ".tkus/a/main.jsonl": ledger(
-                entry(1.0, providers=[{"provider": "claude-code", "model": evil, "usd": 1.0}])
+                entry(
+                    2.0,
+                    providers=[
+                        {"provider": "claude-code", "model": evil, "usd": 1.0},
+                        {"provider": "claude-code", "model": "safe", "usd": 1.0},
+                    ],
+                )
             )
         }
     )

@@ -65,3 +65,9 @@ def test_untrusted_names_in_titles_are_escaped():
     )["03-spend-by-model"]
     html = slide_html(s, chart_svg(s))
     assert evil not in html and Outline(html).fetches == []
+
+
+def test_figure_slides_show_the_number_without_a_chart():
+    s = slides({".tkus/a/main.jsonl": ledger(entry(1.0))})["03-spend-by-model"]
+    html = slide_html(s, chart_svg(s))
+    assert 'class="hero"' in html and "claude-opus-5" in html and "<svg" not in html

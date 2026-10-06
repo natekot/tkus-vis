@@ -80,7 +80,7 @@ class Bar:
 @dataclass(frozen=True)
 class Slide:
     slug: str  # file name stem, numbered by slides_for, e.g. "01-headline"
-    kind: str  # "headline", "columns" or "bars"
+    kind: str  # "headline", "columns", "bars" or "figure" (one number, no chart)
     title: str  # the takeaway, one sentence
     subtitle: str
     currency: str
@@ -104,7 +104,24 @@ def slides_for(dataset: Dataset, view: CurrencyView) -> list[Slide]:
     if weeks:
         slides.append(_weekly(view, weeks, source))
     slides += [_models(view, source), _where(dataset, view, source)]
+    slides = [_figure(s) if len(s.bars) == 1 else s for s in slides]
     return [replace(s, slug=f"{n:02d}-{s.slug}") for n, s in enumerate(slides, start=1)]
+
+
+def _figure(slide: Slide) -> Slide:
+    """One bar is not a chart: show its number instead (dataviz: no one-bar bar charts)."""
+    bar = slide.bars[0]
+    label = f"week of {bar.label}" if slide.kind == "columns" else bar.label
+    if "†" in bar.value:
+        label += " †"
+    return replace(
+        slide,
+        kind="figure",
+        hero=money(bar.usd, slide.currency),
+        hero_label=label,
+        bars=(),
+        legend=(),
+    )
 
 
 def _noun(count: int, singular: str, plural: str) -> str:

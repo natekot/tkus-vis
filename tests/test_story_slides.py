@@ -198,3 +198,17 @@ def test_one_commit_uses_singular_labels():
         ("1", "branch with spend"),
         ("1", "model used"),
     )
+
+
+def test_a_single_bar_becomes_a_figure_not_a_one_bar_chart():
+    s = slides({".tkus/a/main.jsonl": ledger(entry(1.0, since=None))})
+    assert [x.kind for x in s.values()] == ["headline", "figure", "figure", "figure"]
+    week, model, where = s["02-weekly-spend"], s["03-spend-by-model"], s["04-where-spend-sits"]
+    assert (model.title, model.hero, model.hero_label) == (
+        "All spend was on claude-opus-5",
+        "$1.00",
+        "claude-opus-5",
+    )
+    assert (week.hero, week.hero_label) == ("$1.00", "week of Sep 7 †")  # backlog week
+    assert (where.hero, where.hero_label) == ("$1.00", "main †")
+    assert all(x.bars == () and x.legend == () for x in (week, model, where))
