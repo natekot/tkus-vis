@@ -4,16 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Nothing is built yet. The repository holds only `tkus-vis-init.md`, the founding
-design brief. That brief is the spec: read the relevant section before any
-substantive change. This file condenses it and adds facts checked against the
-tkus source. When milestone 1 lands, replace this section with the real build,
-lint and test commands, including how to run a single test.
+Milestone 1 is done: a local single-repo report, reconciled with `tkus rollup`. The design
+brief `tkus-vis-init.md` is the spec. Read the relevant section before substantive changes.
+The brief's **Open decisions** (§9) still need the user's confirmation before milestone 2:
+`--repo`/`--org` CLI shape, GitHub auth, charting, team mapping, hosting, org auth.
 
-The brief's **Open decisions** (§9) belong to the user: language, CLI shape,
-GitHub auth, charting, team-mapping source, hosting and org auth. The suggested
-defaults are fine for milestone 1. Confirm them with the user before building
-past it.
+## Commands
+
+```sh
+uv sync                                         # create .venv with dev tools
+uv run pytest                                   # all tests
+uv run pytest tests/test_model.py::test_real_tkus_ledger_is_pinned   # one test
+uv run ruff format && uv run ruff check         # before every commit
+uv run tkus-vis build --path ../tkus -o out/tkus.html   # a real report (out/ is ignored)
+```
+
+`tests/test_reconcile.py` runs tkus from source as an oracle. It finds tkus at `$TKUS_SRC`,
+defaulting to `../tkus`, and is skipped when tkus is missing.
+
+## Code map
+
+`collect.py` (the only module that runs git) → `ledger.py` (format: path rules, parsing,
+`Snapshot`) → `model.py` (pure; per-currency views, buckets, audit rows without identities)
+→ `render.py` + `templates/report.html.j2` (formatting only) ← `cli.py` wires them together.
+Tests build real git repos through `tests/helpers.py` and `tests/conftest.py`, with git config
+isolated from the user's. `tests/fixtures/tkus-ledger/` is the real ledger pinned at tkus@b6fce91.
 
 ## What it is
 
@@ -76,6 +91,9 @@ Gotchas for reconciliation tests:
   squash-merged and deleted, it reports `commits: []` with every entry under
   `orphaned`. Use it as an oracle on the default branch, not on merged feature
   branches.
+- tkus 0.10.0's `rollup` skips non-ASCII ledger paths (`git ls-files` without `-z`).
+  tkus-vis reads them. `test_non_ascii_paths_reconcile` is a strict xfail that flips
+  when tkus fixes it.
 
 ## Sample data
 
@@ -90,10 +108,8 @@ Gotchas for reconciliation tests:
 
 ## Python on this machine
 
-`python3` on PATH is `/usr/bin/python3` 3.9.6, which is below the brief's
-suggested 3.10+. uv is installed with CPython 3.12–3.14, and Homebrew provides
-`python3.14`. System Python is fine for running the tkus oracle, which needs
-3.8 or later.
+`uv` manages the interpreter (`.python-version` pins 3.12, and the floor is 3.10). The
+system `python3` is 3.9 and is only good for running tkus itself.
 
 ## Planned architecture (brief §8)
 
