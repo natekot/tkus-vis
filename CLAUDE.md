@@ -4,10 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Milestone 1 is done: a local single-repo report, reconciled with `tkus rollup`. The design
-brief `tkus-vis-init.md` is the spec. Read the relevant section before substantive changes.
-The brief's **Open decisions** (§9) still need the user's confirmation before milestone 2:
-`--repo`/`--org` CLI shape, GitHub auth, charting, team mapping, hosting, org auth.
+Milestone 1 is done: a local single-repo report, reconciled with `tkus rollup`. Step 1 of the
+infographics work is done too: `tkus-vis slides` writes finished 16:9 slides from ledger data.
+The design brief `tkus-vis-init.md` is the spec. Read the relevant section before substantive
+changes.
+
+**Current priority:** high-quality slide infographics, which are pasted into a deck by hand.
+The PR join (milestone 2) comes next. Phone, responsive and cross-OS support are out of scope;
+slide export needs macOS with Google Chrome. The brief's **Open decisions** (§9) still need the
+user's confirmation before milestone 2: `--repo`/`--org` CLI shape, GitHub auth, team mapping,
+hosting, org auth. Charting is decided: Vega-Lite via vl-convert.
 
 ## Commands
 
@@ -17,6 +23,7 @@ uv run pytest                                   # all tests
 uv run pytest tests/test_model.py::test_real_tkus_ledger_is_pinned   # one test
 uv run ruff format && uv run ruff check         # before every commit
 uv run tkus-vis build --path ../tkus -o out/tkus.html   # a real report (out/ is ignored)
+uv run tkus-vis slides --path ../tkus -o out/slides   # slide PNG + PDF (needs Google Chrome)
 ```
 
 `tests/test_reconcile.py` runs tkus from source as an oracle. It finds tkus at `$TKUS_SRC`,
@@ -27,6 +34,11 @@ defaulting to `../tkus`, and is skipped when tkus is missing.
 `collect.py` (the only module that runs git) → `ledger.py` (format: path rules, parsing,
 `Snapshot`) → `model.py` (pure; per-currency views, buckets, audit rows without identities)
 → `render.py` + `templates/report.html.j2` (formatting only) ← `cli.py` wires them together.
+Slides branch off the model: `story.py` (pure: each slide's numbers and takeaway sentence, pinned
+by tests) → `charts.py` (Vega-Lite specs rendered to SVG by vl-convert; the look lives in
+`theme.py`) → `export.py` + `templates/slide.html.j2` (1920×1080 HTML, printed to 2x PNG and
+vector PDF by Chrome via Playwright, flagging slides that overflow). Before changing a chart,
+load the `dataviz` skill, and look at the rendered PNGs before calling it done.
 Tests build real git repos through `tests/helpers.py` and `tests/conftest.py`, with git config
 isolated from the user's. `tests/fixtures/tkus-ledger/` is the real ledger pinned at tkus@b6fce91.
 
