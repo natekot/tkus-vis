@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI spend: {{ d.repo }}</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1b1b1f; --muted: #5d6066; --line: #e3e4e8;
+  --tile: #f4f5f7; --warn-bg: #fff3e0; --warn-fg: #6d3b00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141518; --fg: #e9e9ec; --muted: #a2a5ab; --line: #303238;
+    --tile: #1f2125; --warn-bg: #3b2a12; --warn-fg: #ffd9a3;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto; max-width: 960px; padding: 32px 16px;
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 32px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.meta, .note { color: var(--muted); font-size: 0.9rem; }
+.warn { background: var(--warn-bg); color: var(--warn-fg); padding: 10px 14px; border-radius: 6px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 20px; }
+.tile { background: var(--tile); border-radius: 8px; padding: 12px 16px; }
+.tile .label { color: var(--muted); font-size: 0.85rem; }
+.tile .value { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.num { text-align: right; white-space: nowrap; }
+code { font-size: 0.9em; overflow-wrap: anywhere; }
+@media print {
+  body { max-width: none; padding: 0; }
+  .tile { border: 1px solid var(--line); }
+  h2 { break-after: avoid; }
+  tr, .tile { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<header id="summary">
+<h1>AI agent spend: {{ d.repo }}</h1>
+<p class="meta">Ledger at <code>{{ d.ref }}</code> ({{ d.commit[:12] }}), default branch <code>{{ d.default_branch }}</code>. Generated {{ d.generated_at }} by tkus-vis {{ version }}.</p>
+</header>
+{% if not d.views %}
+<section id="no-ledger">
+<p class="warn">No tkus ledger was found at <code>{{ d.ref }}</code>. This repository's AI spend is unknown, not zero.</p>
+</section>
+{% elif d.views|length > 1 %}
+<p class="warn">This ledger records more than one currency. Each is reported on its own, and they are never summed.</p>
+{% endif %}
+{% for v in d.views %}
+<section id="spend-{{ v.currency|lower }}">
+<div class="tiles">
+  <div class="tile"><div class="label">Total spend</div><div class="value">{{ v.total|money }} {{ v.currency }}</div></div>
+  <div class="tile"><div class="label">Commits with AI usage</div><div class="value">{{ v.entries }}</div></div>
+  <div class="tile"><div class="label">Branches with spend</div><div class="value">{{ v.branches|length }}</div></div>
+  <div class="tile"><div class="label">Install backlog</div><div class="value">{{ v.backlog_usd|money }}</div></div>
+</div>
+<h2>Spend by branch</h2>
+<table>
+<thead><tr><th>Branch</th><th>Bucket</th><th class="num">Commits</th><th class="num">Cost ({{ v.currency }})</th></tr></thead>
+<tbody>
+{% for b in v.branches %}
+<tr><td><code>{{ b.branch }}</code></td><td>{{ labels[b.bucket] }}</td><td class="num">{{ b.entries }}</td><td class="num">{{ b.usd|money }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2>Spend by week</h2>
+<p class="note">Weeks start on Monday (UTC). Each entry counts in the week its usage window ended.</p>
+<table>
+<thead><tr><th>Week of</th><th class="num">Commits</th><th class="num">Cost ({{ v.currency }})</th></tr></thead>
+<tbody>
+{% for w in v.weeks %}
+<tr><td>{{ w.week }}</td><td class="num">{{ w.entries }}</td><td class="num">{{ w.usd|money }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2>Spend by model</h2>
+<table>
+<thead><tr><th>Provider</th><th>Model</th><th class="num">Requests</th><th class="num">Cost ({{ v.currency }})</th></tr></thead>
+<tbody>
+{% for m in v.models %}
+<tr><td>{{ m.provider }}</td><td><code>{{ m.model }}</code></td><td class="num">{{ m.reqs }}</td><td class="num">{{ m.usd|money }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</section>
+{% endfor %}
+<section id="methodology">
+<h2>Coverage and methodology</h2>
+{% if d.views %}
+<table>
+<thead><tr><th>Where the spend sits</th>{% for v in d.views %}<th class="num">{{ v.currency }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for key, label in labels.items() %}
+<tr><td>{{ label }}</td>{% for v in d.views %}<td class="num">{{ v.buckets[key]|money }}</td>{% endfor %}</tr>
+{% endfor %}
+<tr><th>Everything in the ledger</th>{% for v in d.views %}<th class="num">{{ v.total|money }}</th>{% endfor %}</tr>
+</tbody>
+</table>
+{% endif %}
+<ul class="note">
+<li>Costs are the <code>usd</code> recorded in each tkus ledger entry when it was written, at list price or the repository's configured rates. They are never re-priced. For subscription users the figure is notional: what the tokens would cost, not what was billed.</li>
+<li>Only work recorded by tkus is counted. Repositories without a ledger, <code>--local-only</code> installs, commits made with <code>--no-verify</code>, and work from before tkus was installed are unknown, not free.</li>
+<li>The install backlog is the first entry after tkus was installed (<code>since: null</code>). It can hold weeks of earlier usage, and it is included in the totals above.</li>
+<li>Branch spend is not yet matched to pull requests, so cost per pull request is not shown.</li>
+<li>Read {{ d.ledger_files }} ledger files at {{ d.commit[:12] }}. {{ d.problems }} lines were skipped or corrected; the command line lists them.</li>
+</ul>
+</section>
+</body>
+</html>
