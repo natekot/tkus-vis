@@ -3,7 +3,10 @@ name = "tkus-vis"
 version = "0.1.0"
 description = "Executive report of AI agent spend from tkus ledgers, joined with delivery output."
 requires-python = ">=3.10"
-dependencies = ["jinja2>=3.1"]
+dependencies = [
+    "jinja2>=3.1",
+    "vl-convert-python>=1.9.0.post1",
+]
 
 [project.scripts]
 tkus-vis = "tkus_vis.cli:main"
