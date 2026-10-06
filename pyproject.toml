@@ -1,0 +1,27 @@
+[project]
+name = "tkus-vis"
+version = "0.1.0"
+description = "Executive report of AI agent spend from tkus ledgers, joined with delivery output."
+requires-python = ">=3.10"
+dependencies = ["jinja2>=3.1"]
+
+[project.scripts]
+tkus-vis = "tkus_vis.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
