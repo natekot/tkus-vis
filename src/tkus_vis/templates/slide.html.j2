@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ slide.title }}</title>
+<style>
+@page { size: {{ t.SLIDE_WIDTH }}px {{ t.SLIDE_HEIGHT }}px; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  width: {{ t.SLIDE_WIDTH }}px; height: {{ t.SLIDE_HEIGHT }}px; overflow: hidden;
+  background: {{ t.SURFACE }}; color: {{ t.INK }};
+  font-family: {{ t.FONT }};
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+main { width: 100%; height: 100%; padding: 88px 96px 64px; display: flex; flex-direction: column; }
+h1 { margin: 0; max-width: 1600px; font-size: 56px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+.subtitle { margin: 16px 0 0; font-size: 30px; color: {{ t.INK_SECONDARY }}; }
+.chart { margin-top: 56px; }
+.chart svg { display: block; }
+.hero { margin-top: 112px; font-size: 220px; font-weight: 700; line-height: 1; letter-spacing: -0.03em; }
+.hero-label { margin-top: 20px; font-size: 34px; color: {{ t.INK_SECONDARY }}; }
+.figures { display: flex; gap: 120px; margin-top: 88px; }
+.figure .value { font-size: 72px; font-weight: 700; line-height: 1.1; }
+.figure .label { margin-top: 8px; font-size: 26px; color: {{ t.INK_SECONDARY }}; }
+footer { margin-top: auto; padding-top: 32px; font-size: 20px; line-height: 1.45; color: {{ t.INK_MUTED }}; }
+footer p { margin: 0; max-width: 1600px; }
+</style>
+</head>
+<body>
+<main id="{{ slide.slug }}">
+<h1>{{ slide.title }}</h1>
+<p class="subtitle">{{ slide.subtitle }}</p>
+{% if slide.kind == "headline" %}
+<div class="hero">{{ slide.hero }}</div>
+<div class="hero-label">{{ slide.hero_label }}</div>
+<div class="figures">
+{% for value, label in slide.figures %}
+  <div class="figure"><div class="value">{{ value }}</div><div class="label">{{ label }}</div></div>
+{% endfor %}
+</div>
+{% else %}
+<div class="chart">{{ chart }}</div>
+{% endif %}
+<footer>
+{% for note in slide.footnotes %}
+<p>{{ note }}</p>
+{% endfor %}
+</footer>
+</main>
+</body>
+</html>

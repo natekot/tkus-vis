@@ -16,7 +16,7 @@ BUCKET_LABELS = {
 }
 
 # autoescape: branch and model names come from analysed repositories, so they're untrusted.
-_env = Environment(
+TEMPLATES = Environment(
     loader=PackageLoader("tkus_vis", "templates"),
     autoescape=True,
     undefined=StrictUndefined,
@@ -24,11 +24,11 @@ _env = Environment(
     lstrip_blocks=True,
     keep_trailing_newline=True,
 )
-_env.filters["money"] = lambda value: f"{value:,.2f}"
+TEMPLATES.filters["money"] = lambda value: f"{value:,.2f}"
 
 
 def render_html(dataset: Dataset) -> str:
-    template = _env.get_template("report.html.j2")
+    template = TEMPLATES.get_template("report.html.j2")
     return template.render(d=dataset, labels=BUCKET_LABELS, version=__version__)
 
 

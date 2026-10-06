@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from html.parser import HTMLParser
 from pathlib import Path
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -67,3 +68,38 @@ def tkus_ledger_files() -> dict[str, str]:
         ".tkus/" + p.relative_to(root).as_posix(): p.read_text(encoding="utf-8")
         for p in sorted(root.rglob("*.jsonl"))
     }
+
+
+class Outline(HTMLParser):
+    """The page's landmarks, plus anything that would fetch over the network."""
+
+    def __init__(self, html: str):
+        super().__init__()
+        self.landmarks: list[str] = []
+        self.fetches: list[str] = []
+        self._text: list[str] | None = None
+        self._style = False
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag in ("header", "section", "main") and attrs.get("id"):
+            self.landmarks.append(f"{tag}#{attrs['id']}")
+        if tag in ("h1", "h2"):
+            self._text = []
+        if "src" in attrs or tag in ("link", "script", "iframe", "object", "embed"):
+            self.fetches.append(tag)
+        self._style = tag == "style"
+
+    def handle_endtag(self, tag):
+        if tag in ("h1", "h2") and self._text is not None:
+            self.landmarks.append(f"{tag}: {' '.join(''.join(self._text).split())}")
+            self._text = None
+        if tag == "style":
+            self._style = False
+
+    def handle_data(self, data):
+        if self._text is not None:
+            self._text.append(data)
+        if self._style and ("url(" in data or "@import" in data):
+            self.fetches.append("css")

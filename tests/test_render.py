@@ -1,8 +1,7 @@
 import json
-from html.parser import HTMLParser
 
 import pytest
-from helpers import entry, ledger, tkus_ledger_files
+from helpers import Outline, entry, ledger, tkus_ledger_files
 
 from tkus_vis.ledger import Snapshot
 from tkus_vis.model import build_dataset
@@ -14,41 +13,6 @@ def dataset(files):
         Snapshot("demo", "origin/main", "c" * 40, "main", files), "2026-10-06T12:00:00Z"
     )
     return built
-
-
-class Outline(HTMLParser):
-    """The page's landmarks, plus anything that would fetch over the network."""
-
-    def __init__(self, html: str):
-        super().__init__()
-        self.landmarks: list[str] = []
-        self.fetches: list[str] = []
-        self._text: list[str] | None = None
-        self._style = False
-        self.feed(html)
-
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        if tag in ("header", "section") and attrs.get("id"):
-            self.landmarks.append(f"{tag}#{attrs['id']}")
-        if tag in ("h1", "h2"):
-            self._text = []
-        if "src" in attrs or tag in ("link", "script", "iframe", "object", "embed"):
-            self.fetches.append(tag)
-        self._style = tag == "style"
-
-    def handle_endtag(self, tag):
-        if tag in ("h1", "h2") and self._text is not None:
-            self.landmarks.append(f"{tag}: {' '.join(''.join(self._text).split())}")
-            self._text = None
-        if tag == "style":
-            self._style = False
-
-    def handle_data(self, data):
-        if self._text is not None:
-            self._text.append(data)
-        if self._style and ("url(" in data or "@import" in data):
-            self.fetches.append("css")
 
 
 def test_page_outline():
