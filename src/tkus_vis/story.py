@@ -34,6 +34,8 @@ def percent(part: float, whole: float) -> str:
     share = 100 * part / whole
     if 0 < share < 1:
         return "<1%"
+    if 99 < share < 100:  # rounding would claim the whole
+        return ">99%"
     return f"{share:.0f}%"
 
 

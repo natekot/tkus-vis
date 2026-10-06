@@ -30,7 +30,14 @@ def test_money(value, currency, text):
 
 @pytest.mark.parametrize(
     "part, whole, text",
-    [(54.8159045, 66.9073434, "82%"), (1, 3, "33%"), (0.001, 10, "<1%"), (1, 0, "–")],
+    [
+        (54.8159045, 66.9073434, "82%"),
+        (1, 3, "33%"),
+        (0.001, 10, "<1%"),
+        (1, 0, "–"),
+        (12349, 12351, ">99%"),  # never round a partial share up to "100%"
+        (5, 5, "100%"),
+    ],
 )
 def test_percent(part, whole, text):
     assert percent(part, whole) == text
