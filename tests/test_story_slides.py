@@ -71,7 +71,17 @@ def test_weekly_spend(tkus):
         "Oct 5": "$5.97",
     }
     assert [round(b.usd, 2) for b in s.bars][2:4] == [0.0, 0.0]
-    assert s.footnotes == ("† " + BACKLOG, SOURCE)
+    # Two clocks, stated explicitly (spec §5.8): this one is when each commit's usage ended.
+    assert s.subtitle == (
+        "AI agent spend per week, counted when each commit's usage window ended "
+        "(weeks start Monday, UTC)"
+    )
+    assert s.footnotes == (
+        "† " + BACKLOG,
+        "Weeks at $0 had no commits with AI usage; work in progress is counted "
+        "in the week its commit lands.",
+        SOURCE,
+    )
 
 
 def test_spend_by_model(tkus):
@@ -84,6 +94,7 @@ def test_spend_by_model(tkus):
         ("claude-opus-5-5", "$8.88 · 13%", "accent"),
     ]
     assert s.legend == ()
+    assert s.footnotes == (BACKLOG, SOURCE)
 
 
 def test_where_spend_sits(tkus):
@@ -93,9 +104,10 @@ def test_where_spend_sits(tkus):
         ("main", "$54.82 · 82%", "accent"),
         ("add-tkus-log", "$10.82 · 16%", "rest"),
         ("price-opus-5-5", "$0.89 · 1%", "rest"),
-        ("fix-amend-rename-attribution", "$0.39 · <1%", "rest"),
+        ("fix-amend-rename-attribution", "$0.39 · <1% †", "rest"),
     ]
     assert s.legend == (("accent", "Committed to main"), ("rest", "Other branches"))
+    assert s.footnotes == ("† " + BACKLOG, SOURCE)
 
 
 def test_mostly_feature_branch_spend_is_phrased_that_way():

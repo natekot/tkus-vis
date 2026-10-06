@@ -178,6 +178,11 @@ def _weekly(view: CurrencyView, weeks: list[WeekRow], source: str) -> Slide:
     notes = []
     if backlog_weeks & {w.week for w in weeks}:
         notes.append("† " + _backlog(view))
+    if any(not w.entries for w in weeks):
+        notes.append(
+            "Weeks at $0 had no commits with AI usage; work in progress is counted "
+            "in the week its commit lands."
+        )
     undated = math.fsum(w.usd for w in view.weeks if w.week == "unknown")
     if undated:
         notes.append(f"{money(undated, view.currency)} of spend has no date and is not shown.")
@@ -186,7 +191,10 @@ def _weekly(view: CurrencyView, weeks: list[WeekRow], source: str) -> Slide:
         slug="weekly-spend",
         kind="columns",
         title=title,
-        subtitle="AI agent spend per week (weeks start Monday, UTC)",
+        subtitle=(
+            "AI agent spend per week, counted when each commit's usage window ended "
+            "(weeks start Monday, UTC)"
+        ),
         currency=view.currency,
         bars=tuple(bars),
         footnotes=tuple(notes),
@@ -229,7 +237,7 @@ def _models(view: CurrencyView, source: str) -> Slide:
         subtitle="AI agent spend by model" + via,
         currency=view.currency,
         bars=tuple(bars),
-        footnotes=(source,),
+        footnotes=tuple(note for note in (_backlog(view), source) if note),
     )
 
 
@@ -245,13 +253,24 @@ def _where(dataset: Dataset, view: CurrencyView, source: str) -> Slide:
                 [r for r in tail if r is not default] + [shown[-1]],
             )
             shown.sort(key=lambda r: -r.usd)
+
+    def marked(text: str, rows) -> str:
+        return f"{text} †" if any(r.backlog_usd for r in rows) else text
+
     bars = [
-        Bar(r.branch, r.usd, _share(r.usd, view), "accent" if r.bucket == DIRECT else "rest")
+        Bar(
+            r.branch,
+            r.usd,
+            marked(_share(r.usd, view), [r]),
+            "accent" if r.bucket == DIRECT else "rest",
+        )
         for r in shown
     ]
     if tail:
         usd = math.fsum(r.usd for r in tail)
-        bars.append(Bar(f"Other ({len(tail)} branches)", usd, _share(usd, view), "rest"))
+        bars.append(
+            Bar(f"Other ({len(tail)} branches)", usd, marked(_share(usd, view), tail), "rest")
+        )
     direct = view.buckets[DIRECT]
     if direct >= view.total / 2:
         title = (
@@ -273,5 +292,5 @@ def _where(dataset: Dataset, view: CurrencyView, source: str) -> Slide:
         currency=view.currency,
         bars=tuple(bars),
         legend=legend if len(groups) > 1 else (),
-        footnotes=(source,),
+        footnotes=(("† " + _backlog(view),) if view.backlog_entries else ()) + (source,),
     )
