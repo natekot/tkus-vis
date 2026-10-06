@@ -1,4 +1,5 @@
 import re
+from datetime import date, timedelta
 
 import pytest
 from helpers import entry, ledger, tkus_ledger_files
@@ -93,3 +94,35 @@ def test_untrusted_names_are_escaped_in_svg():
 def test_legend_labels_are_not_truncated(tkus):
     drawn = drawn_text(chart_svg(tkus["where-spend-sits"]))
     assert "Committed to main" in drawn and "Other branches" in drawn
+
+
+def weekly(weeks: int):
+    start = date(2026, 1, 5)  # a Monday
+    lines = [
+        entry(1.0 + i % 5, until=f"{start + timedelta(weeks=i)}T12:00:00Z") for i in range(weeks)
+    ]
+    return slides({".tkus/a/main.jsonl": ledger(*lines)})["weekly-spend"]
+
+
+@pytest.mark.parametrize("weeks", [9, 30, 60])
+def test_columns_thin_and_labels_thin_as_weeks_grow(weeks):
+    spec = chart_spec(weekly(weeks))
+    assert spec["layer"][0]["mark"]["size"] <= 0.6 * theme.CHART_WIDTH / weeks  # air in every band
+    shown = spec["encoding"]["x"]["axis"]["values"]
+    assert len(shown) <= 12
+    assert shown[-1] == spec["data"]["values"][-1]["week"]  # the latest week is always labelled
+
+
+def test_a_long_weekly_chart_draws_few_unique_labels():
+    drawn = [
+        t for t in drawn_text(chart_svg(weekly(60))) if re.fullmatch(r"[A-Z][a-z]{2} \d{1,2}", t)
+    ]
+    assert 0 < len(drawn) <= 12 and len(set(drawn)) == len(drawn)
+
+
+def test_many_bars_keep_air_between_rows():
+    files = {f".tkus/a/b{i}.jsonl": ledger(entry(float(i + 1))) for i in range(10)}
+    files[".tkus/a/main.jsonl"] = ledger(entry(50.0))
+    spec = chart_spec(slides(files)["where-spend-sits"])
+    rows = len(spec["data"]["values"])
+    assert spec["layer"][0]["mark"]["size"] <= 0.6 * spec["height"] / rows

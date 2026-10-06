@@ -75,6 +75,7 @@ class Bar:
     usd: float
     value: str = ""  # text placed at the bar's end; "" places none
     group: str = "accent"  # "accent" (the subject) or "rest" (gray context)
+    key: str = ""  # a stable, unique id for the bar's position, e.g. the week's ISO date
 
 
 @dataclass(frozen=True)
@@ -184,7 +185,7 @@ def _weekly(view: CurrencyView, weeks: list[WeekRow], source: str) -> Slide:
         value = money(w.usd, view.currency) if w.usd and w.week in labelled else ""
         if w.week in backlog_weeks:
             value = f"{value} †".strip()
-        bars.append(Bar(day(date.fromisoformat(w.week)), w.usd, value))
+        bars.append(Bar(day(date.fromisoformat(w.week)), w.usd, value, key=w.week))
     if len(weeks) > 1:
         title = (
             f"Spend peaked in the week of {day(date.fromisoformat(peak.week))} "

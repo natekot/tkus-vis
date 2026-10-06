@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+import json
+import math
+
 import vl_convert
 
 from . import theme
 from .story import Slide
+
+# Room the y-axis labels take beside a column chart, and the most x labels that stay legible.
+_PLOT_WIDTH = theme.CHART_WIDTH - 80
+_MAX_X_LABELS = 12
+_LEGEND_ROOM = 72  # height a top legend takes in a bar chart
+
+
+def _thickness(space: float, count: int) -> int:
+    """Bar thickness: capped, and at most 60% of its band, so every band keeps air."""
+    return max(2, min(theme.BAR_MAX, int(0.6 * space / max(count, 1))))
 
 
 def chart_spec(slide: Slide) -> dict | None:
@@ -38,16 +51,23 @@ def _money_format(slide: Slide) -> str:
 
 
 def _columns(slide: Slide) -> dict:
-    values = [{"label": b.label, "usd": b.usd, "value": b.value} for b in slide.bars]
+    values = [
+        {"week": b.key or b.label, "label": b.label, "usd": b.usd, "value": b.value}
+        for b in slide.bars
+    ]
+    # Label every stride-th week, counting back from the latest so it is always labelled.
+    stride = math.ceil(len(values) / _MAX_X_LABELS)
+    shown = [v["week"] for v in values][::-1][::stride][::-1]
+    names = json.dumps({v["week"]: v["label"] for v in values})
     return {
         **_base(values, theme.CHART_HEIGHT),
         "encoding": {
             "x": {
-                "field": "label",
+                "field": "week",
                 "type": "ordinal",
                 "sort": None,
                 "title": None,
-                "axis": {"labelAngle": 0},
+                "axis": {"labelAngle": 0, "values": shown, "labelExpr": f"{names}[datum.value]"},
             },
             "y": {
                 "field": "usd",
@@ -61,7 +81,7 @@ def _columns(slide: Slide) -> dict:
                 "mark": {
                     "type": "bar",
                     "color": theme.ACCENT,
-                    "size": theme.BAR_MAX,
+                    "size": _thickness(_PLOT_WIDTH, len(values)),
                     "cornerRadiusEnd": theme.CORNER,
                 }
             },
@@ -92,7 +112,8 @@ def _bars(slide: Slide) -> dict:
     }
     if len(slide.legend) >= 2:
         color["legend"] = {"title": None, "orient": "top", "direction": "horizontal", "offset": 32}
-    height = min(theme.CHART_HEIGHT, theme.BAR_STEP * max(len(values), 1))
+    legend_room = _LEGEND_ROOM if len(slide.legend) >= 2 else 0
+    height = min(theme.CHART_HEIGHT, theme.BAR_STEP * max(len(values), 1) + legend_room)
     return {
         **_base(values, height),
         "encoding": {
@@ -119,7 +140,11 @@ def _bars(slide: Slide) -> dict:
         },
         "layer": [
             {
-                "mark": {"type": "bar", "size": theme.BAR_MAX, "cornerRadiusEnd": theme.CORNER},
+                "mark": {
+                    "type": "bar",
+                    "size": _thickness(height - legend_room, len(values)),
+                    "cornerRadiusEnd": theme.CORNER,
+                },
                 "encoding": {"color": color},
             },
             {
