@@ -8,7 +8,14 @@ import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
 
+import pytest
+
 FIXTURES = Path(__file__).parent / "fixtures"
+
+CHROME = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+needs_chrome = pytest.mark.skipif(
+    not CHROME.exists(), reason="exporting slides needs Google Chrome"
+)
 
 # Tests build real repositories. Keep the user's git config out of them:
 # signing, global hooks (including tkus's own), templates.
