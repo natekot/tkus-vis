@@ -86,3 +86,17 @@ def test_bad_usd_is_reported(text, usd, message):
 def test_malformed_providers_are_dropped_not_fatal():
     [e], problems = parse_ledger(PATH, line(usd=1.0, providers="nope"))
     assert e.providers == () and problems == []
+
+
+def test_an_overflowing_usd_is_reported_not_fatal():
+    huge = "1" + "0" * 400  # valid JSON, too big for a float
+    text = '{"since": "x", "usd": ' + huge + ', "providers": [{"model": "m", "usd": ' + huge + "}]}"
+    [e], problems = parse_ledger(PATH, text)
+    assert e.usd == 0.0 and e.providers[0].usd == 0.0
+    assert [p.message for p in problems] == ["usd is not a finite number; counted as 0"]
+
+
+def test_deeply_nested_json_is_skipped_not_fatal():
+    entries, problems = parse_ledger(PATH, "[" * 100_000 + "]" * 100_000 + "\n" + REAL)
+    assert [e.line for e in entries] == [2]
+    assert [(p.line, p.message) for p in problems] == [(1, "skipped: JSON nested too deeply")]

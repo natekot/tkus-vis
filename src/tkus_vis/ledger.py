@@ -107,6 +107,9 @@ def parse_ledger(path: str, text: str) -> tuple[list[Entry], list[Problem]]:
         except ValueError:
             problems.append(Problem(path, number, "skipped: not valid JSON"))
             continue
+        except RecursionError:
+            problems.append(Problem(path, number, "skipped: JSON nested too deeply"))
+            continue
         if not isinstance(obj, dict):
             problems.append(Problem(path, number, "skipped: not a JSON object"))
             continue
@@ -146,6 +149,8 @@ def _money(value: object) -> tuple[float, str | None]:
         number = float(value)
     except ValueError:
         return 0.0, "usd is not a number; counted as 0"
+    except OverflowError:  # an integer too big for a float
+        return 0.0, "usd is not a finite number; counted as 0"
     if not math.isfinite(number):
         return 0.0, "usd is not a finite number; counted as 0"
     return number, ("usd is a string; read as a number" if isinstance(value, str) else None)
