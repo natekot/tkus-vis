@@ -1,16 +1,20 @@
-"""Command line: collect → model → render."""
+"""Command line: collect → model → render (a report) or export (slides)."""
 
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
+from .charts import chart_svg
 from .collect import CollectError, read_local
-from .model import build_dataset
+from .export import ExportError, export, slide_html
+from .model import Dataset, build_dataset
 from .render import render_html, render_json
+from .story import slides_for
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,17 +22,42 @@ def main(argv: list[str] | None = None) -> int:
         prog="tkus-vis", description="Report AI agent spend recorded by tkus."
     )
     parser.add_argument("--version", action="version", version=f"tkus-vis {__version__}")
+    source = argparse.ArgumentParser(add_help=False)
+    source.add_argument("--path", required=True, help="local clone to read")
+    source.add_argument("--ref", help="ref to read the ledger at (default: the default branch)")
+    source.add_argument("--default-branch", help="the default branch (default: from origin/HEAD)")
     commands = parser.add_subparsers(dest="command", required=True)
-    build = commands.add_parser("build", help="write an HTML report and its dataset")
-    build.add_argument("--path", required=True, help="local clone to read")
-    build.add_argument("--ref", help="ref to read the ledger at (default: the default branch)")
-    build.add_argument("--default-branch", help="the default branch (default: from origin/HEAD)")
+    build = commands.add_parser(
+        "build", parents=[source], help="write an HTML report and its dataset"
+    )
     build.add_argument("-o", "--output", required=True, type=Path, help="HTML report to write")
     build.add_argument(
         "--data", type=Path, help="dataset JSON to write (default: the report's path with .json)"
     )
+    slides = commands.add_parser(
+        "slides", parents=[source], help="write slide-ready infographics as PNG and PDF"
+    )
+    slides.add_argument("-o", "--output", required=True, type=Path, help="directory for the slides")
     args = parser.parse_args(argv)
-    return _build(args)
+    return _build(args) if args.command == "build" else _slides(args)
+
+
+def _dataset(args: argparse.Namespace) -> Dataset | None:
+    try:
+        snapshot = read_local(args.path, ref=args.ref, default_branch=args.default_branch)
+    except CollectError as exc:
+        print(f"tkus-vis: {exc}", file=sys.stderr)
+        return None
+    generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    dataset, problems = build_dataset(snapshot, generated)
+    for problem in problems:
+        print(f"tkus-vis: {problem.path}:{problem.line}: {problem.message}", file=sys.stderr)
+    if len(dataset.views) > 1:
+        print(
+            "tkus-vis: the ledger records more than one currency; each is reported separately",
+            file=sys.stderr,
+        )
+    return dataset
 
 
 def _build(args: argparse.Namespace) -> int:
@@ -40,24 +69,46 @@ def _build(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
-    try:
-        snapshot = read_local(args.path, ref=args.ref, default_branch=args.default_branch)
-    except CollectError as exc:
-        print(f"tkus-vis: {exc}", file=sys.stderr)
+    dataset = _dataset(args)
+    if dataset is None:
         return 2
-    generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    dataset, problems = build_dataset(snapshot, generated)
-    for problem in problems:
-        print(f"tkus-vis: {problem.path}:{problem.line}: {problem.message}", file=sys.stderr)
-    if len(dataset.views) > 1:
-        print(
-            "tkus-vis: the ledger records more than one currency; each is reported separately",
-            file=sys.stderr,
-        )
     for path in (report, data):
         path.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(render_html(dataset), encoding="utf-8")
     data.write_text(render_json(dataset), encoding="utf-8")
     totals = ", ".join(f"{v.total:,.2f} {v.currency}" for v in dataset.views)
-    print(f"{report}: {totals or f'no tkus ledger at {snapshot.ref}; cost unknown'}")
+    print(f"{report}: {totals or f'no tkus ledger at {dataset.ref}; cost unknown'}")
+    return 0
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "currency"
+
+
+def _slides(args: argparse.Namespace) -> int:
+    dataset = _dataset(args)
+    if dataset is None:
+        return 2
+    if not dataset.views:
+        print(f"tkus-vis: no tkus ledger at {dataset.ref}; cost unknown, so no slides were written")
+        return 0
+    pages = []
+    for view in dataset.views:
+        prefix = f"{_slug(view.currency)}-" if len(dataset.views) > 1 else ""
+        for slide in slides_for(dataset, view):
+            pages.append((prefix + slide.slug, slide_html(slide, chart_svg(slide))))
+    try:
+        result = export(pages, args.output)
+    except ExportError as exc:
+        print(f"tkus-vis: {exc}", file=sys.stderr)
+        return 2
+    for slug in result.overflowing:
+        print(
+            f"tkus-vis: {slug} doesn't fit on the slide; check it before using it",
+            file=sys.stderr,
+        )
+    data = args.output / "dataset.json"
+    data.write_text(render_json(dataset), encoding="utf-8")
+    for path in [*result.written, data]:
+        print(path)
     return 0
