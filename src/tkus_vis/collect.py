@@ -20,7 +20,8 @@ def read_local(path: str, ref: str | None = None, default_branch: str | None = N
 
     The default branch comes from origin/HEAD unless given. Without either we
     stop rather than guess, because guessing wrong files a feature branch's
-    spend as direct-to-default.
+    spend as direct-to-default. Its tree is read from origin/<name> when that
+    exists (what the server has merged), else from the local branch.
     """
     root = _git(path, "rev-parse", "--show-toplevel", error=f"{path} is not a git repository")
     root = root.strip()
@@ -31,8 +32,16 @@ def read_local(path: str, ref: str | None = None, default_branch: str | None = N
             "can't tell the default branch: origin/HEAD is not set. Pass --default-branch "
             "NAME, or run `git remote set-head origin --auto` in the clone."
         )
+    # A name that isn't a branch (a typo, or "origin/main") would match no ledger
+    # file and silently empty the direct bucket.
+    on_origin = _ref_exists(root, f"refs/remotes/origin/{default_branch}")
+    if not on_origin and not _ref_exists(root, f"refs/heads/{default_branch}"):
+        raise CollectError(
+            f"default branch {default_branch!r} is neither a local branch nor a branch on "
+            f"origin in {root}.{_branch_hint(default_branch)}"
+        )
     if ref is None:
-        ref = f"origin/{origin}" if origin == default_branch else default_branch
+        ref = f"origin/{default_branch}" if on_origin else default_branch
     commit = _git(
         root,
         "rev-parse",
@@ -56,6 +65,17 @@ def _origin_head(root: str) -> str | None:
     if out and out.strip().startswith(prefix):
         return out.strip()[len(prefix) :]
     return None
+
+
+def _ref_exists(root: str, refname: str) -> bool:
+    return _run(root, "show-ref", "--verify", "--quiet", refname) is not None
+
+
+def _branch_hint(name: str) -> str:
+    for prefix in ("refs/heads/", "refs/remotes/origin/", "origin/"):
+        if name.startswith(prefix):
+            return f" Did you mean --default-branch {name[len(prefix) :]}?"
+    return ""
 
 
 def _ledger_files(root: str, commit: str) -> dict[str, str]:
