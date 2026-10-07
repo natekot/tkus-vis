@@ -1,5 +1,6 @@
 import pytest
 import synthetic
+from helpers import entry, ledger
 
 from tkus_vis.ledger import Snapshot
 from tkus_vis.model import build_dataset
@@ -45,6 +46,67 @@ def test_headline_leads_with_coverage_and_the_median(deck):
         ("4", "merged PRs with AI usage"),
         ("$5.50", "median cost per merged PR"),
         ("67%", "of merged PRs carry cost data"),
+    )
+    assert s.footnotes == (BACKLOG + " Per-PR figures leave out $0.50 of it.", SOURCE)
+
+
+def three_merged_prs(files):
+    """Branches a, b and c, each merged as its own PR after the usage."""
+    snapshot = Snapshot(synthetic.REPO, "main", "c" * 40, "main", files)
+    prs = [
+        synthetic.pr(n, b, b.upper(), merged="2026-09-10T00:00:00Z") for n, b in enumerate("abc")
+    ]
+    dataset, _ = build_dataset(snapshot, "t", prs)
+    return dataset, {s.slug.split("-", 1)[1]: s for s in slides_for(dataset, dataset.views[0])}
+
+
+def test_a_pr_holding_only_install_backlog_is_left_out_and_marked():
+    # The PR that installs tkus often carries nothing but the backlog entry (spec §5.6).
+    _, deck = three_merged_prs(
+        {
+            ".tkus/dev/a.jsonl": ledger(entry(3.0)),
+            ".tkus/dev/b.jsonl": ledger(entry(5.0)),
+            ".tkus/dev/c.jsonl": ledger(entry(40.0, since=None)),
+        }
+    )
+    assert deck["headline"].figures == (
+        ("2", "merged PRs with AI usage"),
+        ("$4.00", "median cost per merged PR"),
+        ("100%", "of merged PRs carry cost data"),
+    )
+    assert deck["headline"].footnotes[0] == (
+        "Includes $40.00 of install backlog: usage from before tkus was installed, recorded on "
+        "its first commit. Per-PR figures leave out $40.00 of it."
+    )
+    assert deck["cost-per-pr"].values == (5.0, 3.0)
+    assert deck["cost-per-pr"].footnotes == (
+        "Leaves out $40.00 of install backlog, which is in the totals.",
+        SOURCE,
+    )
+
+
+def test_when_every_merged_pr_holds_only_backlog_the_headline_still_marks_it():
+    _, deck = three_merged_prs({".tkus/dev/c.jsonl": ledger(entry(40.0, since=None))})
+    assert deck["headline"].figures == (
+        ("0", "merged PRs with AI usage"),
+        ("–", "median cost per merged PR"),
+        ("33%", "of merged PRs carry cost data"),
+    )
+    assert deck["headline"].footnotes[0].endswith(" Per-PR figures leave out $40.00 of it.")
+
+
+def test_the_headline_counts_only_prs_with_cost_in_its_currency():
+    dataset, deck = three_merged_prs(
+        {
+            ".tkus/dev/a.jsonl": ledger(entry(3.0)),
+            ".tkus/dev/b.jsonl": ledger(entry(5.0)),
+            ".tkus/dev/c.jsonl": ledger(entry(4.0, currency="EUR")),
+        }
+    )
+    assert dataset.views[0].currency == "USD"
+    assert deck["headline"].figures[:2] == (
+        ("2", "merged PRs with AI usage"),
+        ("$4.00", "median cost per merged PR"),
     )
 
 
@@ -102,7 +164,7 @@ def test_with_no_merged_prs_the_deck_says_so():
 def test_spend_and_merged_prs_by_week(deck):
     s = deck["spend-and-prs"]
     assert s.kind == "throughput"
-    assert s.title == "6 PRs merged in 5 weeks; the busiest week was Sep 7, with 3"
+    assert s.title == "6 PRs merged in 5 weeks, at most 3 in a week"
     assert s.subtitle == (
         "Spend counted when each commit's usage window ended; PRs counted when merged "
         "(weeks start Monday, UTC)"
@@ -127,3 +189,13 @@ def test_spend_and_merged_prs_by_week(deck):
         "tkus didn't record.",
         SOURCE,
     )
+
+
+def test_a_tie_for_the_busiest_week_names_no_single_week():
+    deck = deck_for([p for p in synthetic.PRS if p.number in (10, 13)])  # Aug 31 and Sep 7
+    assert deck["spend-and-prs"].title == "2 PRs merged in 5 weeks, at most 1 in a week"
+
+
+def test_merges_within_one_week_need_no_weekly_peak():
+    _, deck = three_merged_prs({f".tkus/dev/{b}.jsonl": ledger(entry(1.0)) for b in "abc"})
+    assert deck["spend-and-prs"].title == "3 PRs merged in 1 week"

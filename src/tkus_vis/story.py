@@ -344,13 +344,15 @@ def _since(dataset: Dataset) -> str:
     return day(date.fromisoformat(since)) if since else "tkus started recording"
 
 
-def _merged(dataset: Dataset, view: CurrencyView) -> list[PrRow]:
+def _merged_since(dataset: Dataset, view: CurrencyView) -> list[PrRow]:
+    """PRs merged since tkus started recording, with cost in this currency."""
     since = dataset.coverage.since if dataset.coverage else ""
-    return [
-        p
-        for p in view.prs
-        if p.status == "merged" and (p.merged_at or "")[:10] >= since and _cost(p) > 0
-    ]
+    return [p for p in view.prs if p.status == "merged" and (p.merged_at or "")[:10] >= since]
+
+
+def _merged(dataset: Dataset, view: CurrencyView) -> list[PrRow]:
+    """The PRs per-PR views describe: those with cost once install backlog is left out."""
+    return [p for p in _merged_since(dataset, view) if _cost(p) > 0]
 
 
 def _left_out(view: CurrencyView, prs: list[PrRow]) -> str:
@@ -370,16 +372,19 @@ def _headline_joined(
         return replace(base, footnotes=(*base.footnotes[:-1], note, base.footnotes[-1]))
     costs = [_cost(p) for p in merged]
     median = money(statistics.median(costs), view.currency) if costs else "–"
+    footnotes = base.footnotes
+    left_out = math.fsum(p.backlog_usd for p in _merged_since(dataset, view))
+    if left_out:  # so the view has backlog, and its note is the first footnote
+        leaves = f"Per-PR figures leave out {money(left_out, view.currency)} of it."
+        footnotes = (f"{footnotes[0]} {leaves}", *footnotes[1:])
     return replace(
         base,
         figures=(
-            (
-                str(cov.with_cost),
-                _noun(cov.with_cost, "merged PR", "merged PRs") + " with AI usage",
-            ),
+            (str(len(merged)), _noun(len(merged), "merged PR", "merged PRs") + " with AI usage"),
             (median, "median cost per merged PR"),
             (percent(cov.with_cost, cov.merged), "of merged PRs carry cost data"),
         ),
+        footnotes=footnotes,
     )
 
 
@@ -400,7 +405,7 @@ def _cost_per_pr(dataset: Dataset, view: CurrencyView, merged: list[PrRow], sour
         currency=view.currency,
         values=tuple(costs),
         rule=(middle, f"median {money(middle, view.currency)}"),
-        footnotes=tuple(n for n in (_left_out(view, merged), source) if n),
+        footnotes=tuple(n for n in (_left_out(view, _merged_since(dataset, view)), source) if n),
     )
 
 
@@ -522,12 +527,12 @@ def _throughput(dataset: Dataset, view: CurrencyView, source: str) -> Slide:
         )
         for k in weeks
     )
-    busiest = max(cov.weekly, key=lambda m: m.merged)  # the earliest of equal weeks
     title = (
         f"{cov.merged} {_noun(cov.merged, 'PR', 'PRs')} merged in {len(weeks)} "
-        f"{_noun(len(weeks), 'week', 'weeks')}; the busiest week was "
-        f"{day(date.fromisoformat(busiest.week))}, with {busiest.merged}"
+        f"{_noun(len(weeks), 'week', 'weeks')}"
     )
+    if len(weeks) > 1:  # the peak, without naming a week: several often tie
+        title += f", at most {max(m.merged for m in cov.weekly)} in a week"
     notes = []
     if backlog_weeks & set(weeks):
         notes.append("† " + _backlog(view))
