@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The "main: pull requests" ruleset requires these job names as status checks.
+    name: test (py${{ matrix.python }})
+    # macOS: slide export needs Google Chrome at its macOS path, and the runner image has it.
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: tkus-vis
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tkus-vis
+          persist-credentials: false
+      # tkus is the reconciliation oracle, found at ../tkus. Pinned, so its changes reach CI
+      # only when the pin is bumped (a fix upstream would flip a strict xfail).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: natekot/tkus
+          ref: v0.11.0
+          path: tkus
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+          working-directory: tkus-vis
+      - run: uv sync --locked
+      - run: uv run ruff format --check
+      - run: uv run ruff check
+      - run: uv run pytest -rxXs
