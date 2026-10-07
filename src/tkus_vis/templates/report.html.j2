@@ -7,12 +7,12 @@
 <style>
 :root {
   --bg: #ffffff; --fg: #1b1b1f; --muted: #5d6066; --line: #e3e4e8;
-  --tile: #f4f5f7; --warn-bg: #fff3e0; --warn-fg: #6d3b00;
+  --tile: #f4f5f7; --warn-bg: #fff3e0; --warn-fg: #6d3b00; --link: #0b57d0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #141518; --fg: #e9e9ec; --muted: #a2a5ab; --line: #303238;
-    --tile: #1f2125; --warn-bg: #3b2a12; --warn-fg: #ffd9a3;
+    --tile: #1f2125; --warn-bg: #3b2a12; --warn-fg: #ffd9a3; --link: #8ab4f8;
   }
 }
 * { box-sizing: border-box; }
@@ -32,6 +32,7 @@ h2 { font-size: 1.1rem; margin: 32px 0 8px; padding-bottom: 4px; border-bottom: 
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .num { text-align: right; white-space: nowrap; }
+a { color: var(--link); }
 code { font-size: 0.9em; overflow-wrap: anywhere; }
 @media print {
   body { max-width: none; padding: 0; }
@@ -63,10 +64,18 @@ code { font-size: 0.9em; overflow-wrap: anywhere; }
 </div>
 <h2>Spend by branch</h2>
 <table>
-<thead><tr><th>Branch</th><th>Bucket</th><th class="num">Commits</th><th class="num">Cost ({{ v.currency }})</th></tr></thead>
+<thead><tr><th>Branch</th><th class="num">Cost ({{ v.currency }})</th></tr></thead>
 <tbody>
 {% for b in v.branches %}
-<tr><td><code>{{ b.branch }}</code></td><td>{{ labels[b.bucket] }}</td><td class="num">{{ b.entries }}</td><td class="num">{{ b.usd|money }}</td></tr>
+{% set pulls = v.prs|selectattr("number", "in", b.prs)|selectattr("url", "web_link")|sort(attribute="number")|list %}
+<tr><td>
+{%- if pulls|length == 1 -%}
+<a href="{{ pulls[0].url }}" title="#{{ pulls[0].number }} {{ pulls[0].title }} ({{ pulls[0].status }})"><code>{{ b.branch }}</code></a>
+{%- else -%}
+<code>{{ b.branch }}</code>
+{%- if pulls %} ({% for p in pulls %}<a href="{{ p.url }}" title="#{{ p.number }} {{ p.title }} ({{ p.status }})">#{{ p.number }}</a>{{ ", " if not loop.last }}{% endfor %}){% endif -%}
+{%- endif -%}
+</td><td class="num">{{ b.usd|money }}</td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -108,7 +117,11 @@ code { font-size: 0.9em; overflow-wrap: anywhere; }
 <li>Costs are the <code>usd</code> recorded in each tkus ledger entry when it was written, at list price or the repository's configured rates. They are never re-priced. For subscription users the figure is notional: what the tokens would cost, not what was billed.</li>
 <li>Only work recorded by tkus is counted. Repositories without a ledger, <code>--local-only</code> installs, commits made with <code>--no-verify</code>, and work from before tkus was installed are unknown, not free.</li>
 <li>The install backlog is the first entry after tkus was installed (<code>since: null</code>). It can hold weeks of earlier usage, and it is included in the totals above.</li>
+{% if d.coverage is none %}
 <li>Branch spend is not yet matched to pull requests, so cost per pull request is not shown.</li>
+{% else %}
+<li>Each branch links to the pull request its spend went into, and a reused branch name lists each one. Cost per merged pull request and coverage are on the slides (<code>tkus-vis slides</code>), not yet in this report.</li>
+{% endif %}
 <li>Read {{ d.ledger_files }} ledger files at {{ d.commit[:12] }}. {{ d.problems }} lines were skipped or corrected; the command line lists them.</li>
 </ul>
 </section>

@@ -41,8 +41,9 @@ tkus-vis slides --repo OWNER/NAME -o out/slides          # read the ledger and P
 ```
 
 `--repo` adds cost per merged PR, the most expensive PRs and coverage to the slides and the
-dataset JSON. The HTML report shows only where spend went so far. Give `--path` too to read the
-ledger from a local clone while matching PRs on GitHub. GitHub access is read-only and uses
+dataset JSON. The HTML report links each branch to its pull request, but doesn't show cost per
+PR or coverage yet. Give `--path` too to read the ledger from a local clone while matching PRs
+on GitHub. GitHub access is read-only and uses
 `GITHUB_TOKEN`, or `gh auth token` when that's unset.
 
 ## What the numbers mean

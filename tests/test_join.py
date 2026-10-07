@@ -1,8 +1,9 @@
 import math
+from dataclasses import replace
 
 import pytest
 import synthetic
-from helpers import entry, ledger, tkus_ledger_files
+from helpers import branch_table, entry, ledger, tkus_ledger_files
 
 from tkus_vis.ledger import Snapshot
 from tkus_vis.model import (
@@ -102,7 +103,51 @@ def test_without_prs_nothing_changes():
     assert set(dataset.views[0].buckets) == {DIRECT, UNJOINED}
 
 
-def test_the_report_labels_joined_buckets():
+def test_each_branch_lists_the_prs_its_spend_went_into(usd):
+    assert {b.branch: b.prs for b in usd.branches} == {
+        "main": (),
+        "feature/login": (10,),
+        "fix": (11, 14),
+        "wip": (15,),
+        "old-name": (),
+        "patch-1": (),
+        "odd-name": (13,),
+    }
+
+
+def test_the_report_links_branches_to_their_prs():
+    html = render_html(joined())
+    headers, links = branch_table(html)
+    pull = f"https://github.com/{synthetic.REPO}/pull/"
+    assert headers == ["Branch", "Cost (USD)"]
+    assert links == {
+        "fix": [pull + "11", pull + "14"],  # a reused name lists each PR
+        "patch-1": [],  # from a fork
+        "feature/login": [pull + "10"],
+        "old-name": [],
+        "wip": [pull + "15"],
+        "odd-name": [pull + "13"],  # head "odd:name"
+        "main": [],
+    }
+    assert (
+        f'<a href="{pull}10" title="#10 Add login (merged)"><code>feature/login</code></a>' in html
+    )
+    assert "<code>fix</code> (<a " in html
+    assert "Each branch links to the pull request" in html
+
+
+def test_the_report_names_the_joined_buckets():
     html = render_html(joined())
     assert "In pull requests" in html and "No pull request found" in html
-    assert "Partly in pull requests" in html
+    assert "Partly in pull requests" not in html
+
+
+@pytest.mark.parametrize("url", ["", "javascript:alert(1)"])
+def test_only_web_addresses_become_links(url):
+    files = {".tkus/a/topic.jsonl": ledger(entry(1.0, until="2026-09-02T10:00:00Z"))}
+    merged = synthetic.pr(1, "topic", "Topic", merged="2026-09-03T00:00:00Z")
+    dataset = joined(files, [replace(merged, url=url)])
+    assert dataset.views[0].branches[0].prs == (1,)
+    html = render_html(dataset)
+    assert branch_table(html)[1] == {"topic": []}
+    assert "<a " not in html

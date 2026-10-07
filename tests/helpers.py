@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -79,6 +80,17 @@ def tkus_ledger_files() -> dict[str, str]:
         ".tkus/" + p.relative_to(root).as_posix(): p.read_text(encoding="utf-8")
         for p in sorted(root.rglob("*.jsonl"))
     }
+
+
+def branch_table(html: str) -> tuple[list[str], dict[str, list[str]]]:
+    """The first "Spend by branch" table: its headers, and each branch's link targets."""
+    table = re.search(r"<h2>Spend by branch</h2>\s*<table>(.*?)</table>", html, re.S).group(1)
+    headers = [re.sub(r"<[^>]+>", "", h) for h in re.findall(r"<th[^>]*>(.*?)</th>", table)]
+    links = {}
+    for cell in re.findall(r"<tr><td>(.*?)</td>", table):
+        name = re.search(r"<code>(.*?)</code>", cell).group(1)
+        links[unescape(name)] = [unescape(u) for u in re.findall(r'href="([^"]*)"', cell)]
+    return headers, links
 
 
 class Outline(HTMLParser):

@@ -80,6 +80,7 @@ class BranchRow:
     entries: int
     usd: float
     backlog_usd: float
+    prs: tuple[int, ...] = ()  # the pull requests its spend went into, ascending
 
 
 @dataclass(frozen=True)
@@ -292,6 +293,7 @@ def _view(
                 entries=len(items),
                 usd=_sum(items),
                 backlog_usd=_sum(e for e in items if e.backlog),
+                prs=tuple(sorted({pr.number for e in items if (pr := pr_of(e))})),
             )
         )
     branches.sort(key=lambda row: (-row.usd, row.branch))

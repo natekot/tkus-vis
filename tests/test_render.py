@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from helpers import Outline, entry, ledger, tkus_ledger_files
+from helpers import Outline, branch_table, entry, ledger, tkus_ledger_files
 
 from tkus_vis.ledger import Snapshot
 from tkus_vis.model import build_dataset
@@ -31,6 +31,14 @@ def test_page_outline():
 def test_headline_figures():
     html = render_html(dataset(tkus_ledger_files()))
     assert "66.91 USD" in html and "54.82" in html and "0.39" in html  # total, main, backlog
+
+
+def test_without_prs_branches_are_unlinked_and_the_note_says_why():
+    html = render_html(dataset(tkus_ledger_files()))
+    headers, links = branch_table(html)
+    assert headers == ["Branch", "Cost (USD)"]
+    assert links and not any(links.values())
+    assert "Branch spend is not yet matched to pull requests" in html
 
 
 @pytest.mark.parametrize("files", [tkus_ledger_files(), {}])

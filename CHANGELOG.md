@@ -7,6 +7,12 @@ command line or the dataset.
 
 ## [Unreleased]
 
+### Changed
+
+- With `--repo`, the HTML report links each branch to the pull request its spend went into.
+  The branch table drops its Bucket and Commits columns, and each branch in the dataset lists
+  its pull requests (`prs`).
+
 ## [0.1.0] - 2026-10-07
 
 The first public release: milestones 1 and 2 of the design brief.
