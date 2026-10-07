@@ -12,6 +12,7 @@ from . import __version__
 from .charts import chart_svg
 from .collect import CollectError, read_local
 from .export import ExportError, export, slide_html
+from .github import REPO_NAME, GitHub, GitHubError, pull_requests, read_repo, token
 from .model import Dataset, build_dataset
 from .render import render_html, render_json
 from .story import slides_for
@@ -23,7 +24,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"tkus-vis {__version__}")
     source = argparse.ArgumentParser(add_help=False)
-    source.add_argument("--path", required=True, help="local clone to read")
+    source.add_argument("--path", help="local clone to read the ledger from")
+    source.add_argument(
+        "--repo",
+        type=_repo_name,
+        help="GitHub OWNER/NAME: match spend to its pull requests "
+        "(and read the ledger through GitHub unless --path is given)",
+    )
     source.add_argument("--ref", help="ref to read the ledger at (default: the default branch)")
     source.add_argument("--default-branch", help="the default branch (default: from origin/HEAD)")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -39,17 +46,41 @@ def main(argv: list[str] | None = None) -> int:
     )
     slides.add_argument("-o", "--output", required=True, type=Path, help="directory for the slides")
     args = parser.parse_args(argv)
+    if not args.path and not args.repo:
+        parser.error("give --path, --repo, or both")
     return _build(args) if args.command == "build" else _slides(args)
 
 
+def _repo_name(text: str) -> str:
+    if not REPO_NAME.match(text):
+        raise argparse.ArgumentTypeError(f"expected OWNER/NAME, got {text!r}")
+    return text
+
+
 def _dataset(args: argparse.Namespace) -> Dataset | None:
+    prs = None
     try:
-        snapshot = read_local(args.path, ref=args.ref, default_branch=args.default_branch)
-    except CollectError as exc:
+        gh = None
+        if args.repo:
+            key = token()
+            if key is None:
+                print(
+                    "tkus-vis: no GitHub token (set GITHUB_TOKEN or run `gh auth login`); "
+                    "trying without one, limited to 60 requests an hour",
+                    file=sys.stderr,
+                )
+            gh = GitHub(key)
+        if args.path:
+            snapshot = read_local(args.path, ref=args.ref, default_branch=args.default_branch)
+        else:
+            snapshot = read_repo(gh, args.repo, ref=args.ref, default_branch=args.default_branch)
+        if gh is not None:
+            prs = pull_requests(gh, args.repo)
+    except (CollectError, GitHubError) as exc:
         print(f"tkus-vis: {exc}", file=sys.stderr)
         return None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    dataset, problems = build_dataset(snapshot, generated)
+    dataset, problems = build_dataset(snapshot, generated, prs)
     for problem in problems:
         print(f"tkus-vis: {problem.path}:{problem.line}: {problem.message}", file=sys.stderr)
     if len(dataset.views) > 1:
