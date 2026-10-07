@@ -19,7 +19,8 @@ The first public release: milestones 1 and 2 of the design brief.
   a deck. Slides that overflow are flagged. Needs macOS and Google Chrome.
 - `--repo OWNER/NAME`: reads the ledger and pull requests through read-only GitHub API calls,
   then adds cost per merged PR (median and spread), the most expensive PRs, spend against
-  merged PRs, and coverage.
+  merged PRs, and coverage to the slides and the dataset. The HTML report shows only the
+  buckets so far.
 - Every dollar lands in exactly one bucket: PR-attributed, direct to the default branch, or
   unmatched.
 
