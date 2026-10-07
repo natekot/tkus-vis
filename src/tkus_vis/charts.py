@@ -54,6 +54,16 @@ def _money_format(top: float, currency: str) -> str:
     return f"{'$' if currency == 'USD' else ''},.{decimals}f"
 
 
+def _count_axis(tick_count: int | dict) -> dict:
+    """An axis of whole counts, each labelled once.
+
+    vl-convert ignores tickMinStep, so half steps ("0, 1, 1, 2, 2" under format "d") are
+    avoided by asking for no more ticks than the largest count. Callers pass Vega-Lite's
+    default density, one tick per 40px, capped at that count.
+    """
+    return {"format": "d", "tickCount": tick_count, "domain": False}
+
+
 def _top(slide: Slide) -> float:
     return max((b.usd for b in slide.bars), default=0.0)
 
@@ -198,7 +208,8 @@ def _histogram(slide: Slide) -> dict:
                         "aggregate": "count",
                         "type": "quantitative",
                         "title": "Merged PRs",
-                        "axis": {"format": "d", "tickMinStep": 1, "domain": False},
+                        # Only Vega knows the bin counts: read the largest off the y scale.
+                        "axis": _count_axis({"expr": "min(ceil(height / 40), domain('y')[1])"}),
                     },
                 },
             },
@@ -269,9 +280,11 @@ def _throughput(slide: Slide) -> dict:
         )
         if n
     ]
+    height = 190
+    most = max((with_cost + without for *_, with_cost, without in slide.merges), default=0)
     merged = {
         "width": _CONCAT_WIDTH,
-        "height": 190,
+        "height": height,
         "data": {"values": counts},
         # Stacked segments are separated by a surface-colored gap, not rounded (dataviz).
         "mark": {"type": "bar", "size": size, "stroke": theme.SURFACE, "strokeWidth": 3},
@@ -281,7 +294,7 @@ def _throughput(slide: Slide) -> dict:
                 "field": "count",
                 "type": "quantitative",
                 "title": "PRs merged",
-                "axis": {"format": "d", "tickMinStep": 1, "domain": False},
+                "axis": _count_axis(max(1, min(math.ceil(height / 40), most))),
             },
             "color": {
                 "field": "series",

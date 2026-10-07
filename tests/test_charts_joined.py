@@ -7,7 +7,7 @@ from tkus_vis import theme
 from tkus_vis.charts import chart_spec, chart_svg
 from tkus_vis.ledger import Snapshot
 from tkus_vis.model import build_dataset
-from tkus_vis.story import slides_for
+from tkus_vis.story import Bar, Slide, slides_for
 
 
 def drawn(svg):
@@ -62,3 +62,30 @@ def test_merged_pr_counts_stack_cost_data_first_and_skip_empty_weeks(deck):
     assert all(row["count"] > 0 for row in merged["data"]["values"])
     assert merged["encoding"]["order"]["field"] == "rank"
     assert merged["encoding"]["color"]["legend"]["orient"] == "bottom"  # beside its own chart
+
+
+def axis_labels(svg, title):
+    """The tick labels of the axis with this title, in drawing order."""
+    axis = re.search(rf"aria-label=\"[XY]-axis titled '{re.escape(title)}'.*?role-axis-label", svg)
+    block = svg[axis.end() :].split("</g>", 1)[0]
+    return re.findall(r"<text[^>]*>([^<]*)</text>", block)
+
+
+def test_a_histogram_of_few_prs_counts_in_whole_numbers_once_each():
+    slide = Slide(
+        "cost-per-pr", "histogram", "t", "s", "USD", values=(9.0, 5.0, 5.0), rule=(5.0, "m")
+    )
+    assert axis_labels(chart_svg(slide), "Merged PRs") == ["0", "1", "2"]
+
+
+def test_weeks_of_few_merges_count_in_whole_numbers_once_each():
+    slide = Slide(
+        "spend-and-prs",
+        "throughput",
+        "t",
+        "s",
+        "USD",
+        bars=(Bar("Sep 7", 10.0, key="2026-09-07"), Bar("Sep 14", 5.0, key="2026-09-14")),
+        merges=(("2026-09-07", "Sep 7", 1, 0), ("2026-09-14", "Sep 14", 1, 1)),
+    )
+    assert axis_labels(chart_svg(slide), "PRs merged") == ["0", "1", "2"]
