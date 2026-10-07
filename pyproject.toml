@@ -1,7 +1,12 @@
 [project]
 name = "tkus-vis"
+# Bump with /ship; move CHANGELOG.md's Unreleased notes under the new version in the same commit.
 version = "0.1.0"
 description = "Executive report of AI agent spend from tkus ledgers, joined with delivery output."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Nate Kot" }]
 requires-python = ">=3.10"
 dependencies = [
     "jinja2>=3.1",
@@ -11,6 +16,11 @@ dependencies = [
 
 [project.scripts]
 tkus-vis = "tkus_vis.cli:main"
+
+[project.urls]
+Repository = "https://github.com/natekot/tkus-vis"
+Issues = "https://github.com/natekot/tkus-vis/issues"
+Changelog = "https://github.com/natekot/tkus-vis/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [

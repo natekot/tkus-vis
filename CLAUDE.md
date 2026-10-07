@@ -17,6 +17,20 @@ cross-OS support are out of scope; slide export needs macOS with Google Chrome. 
 open (brief §9): `--org` shape, team mapping, hosting, org auth. natekot/tkus has no merged PRs
 yet, so its deck honestly shows none; the joined deck is designed against `tests/demo_data.py`.
 
+## Repository
+
+Public at github.com/natekot/tkus-vis, MIT licensed. Rulesets guard `main`. Changes arrive by pull
+request, with CI (`.github/workflows/ci.yml`) passing and a code-owner review (`.github/CODEOWNERS`
+lists @natekot and @nate-kot). Only @natekot, as admin, bypasses that. Nobody can force-push or
+delete `main`, and only @natekot can push `v*` tags.
+
+Releases are semver tags. Move `CHANGELOG.md`'s Unreleased notes under the new version, then run
+`/ship`, which bumps `[project].version`, tags `vX.Y.Z` and pushes. The tag runs
+`.github/workflows/release.yml`, which reruns CI, checks the tag against the version, and
+publishes a GitHub Release with the wheel, the sdist and that version's changelog section.
+CI runs on macOS, so the Chrome export tests run. It checks out natekot/tkus at a pinned tag
+as the reconciliation oracle, and that pin is bumped deliberately.
+
 ## Commands
 
 ```sh
@@ -64,7 +78,7 @@ one.
 priced ledger to `.tkus/<identity>/<branch>.jsonl` in each repo. tkus-vis only
 reads that ledger.
 
-- **The latest tkus is checked out at `../tkus`** (0.10.0, tracking `origin/main`).
+- **The latest tkus is checked out at `../tkus`** (0.11.0, tracking `origin/main`).
   The spec is the "Ledger format" section of `../tkus/README.md`.
 - **Never import tkus or depend on its internals.** Depend only on the documented
   file format. tkus-vis must work through the GitHub API on repos where tkus was
@@ -111,7 +125,7 @@ Gotchas for reconciliation tests:
   squash-merged and deleted, it reports `commits: []` with every entry under
   `orphaned`. Use it as an oracle on the default branch, not on merged feature
   branches.
-- tkus 0.10.0's `rollup` skips non-ASCII ledger paths (`git ls-files` without `-z`).
+- tkus's `rollup` (0.10.0 and 0.11.0) skips non-ASCII ledger paths (`git ls-files` without `-z`).
   tkus-vis reads them. `test_non_ascii_paths_reconcile` is a strict xfail that flips
   when tkus fixes it.
 
