@@ -1,0 +1,61 @@
+{
+ "sha": "b70bb353e6df40b80a85272fea4752372990b548",
+ "url": "https://api.github.com/repos/natekot/tkus/git/trees/b70bb353e6df40b80a85272fea4752372990b548",
+ "tree": [
+  {
+   "path": "nate-kot",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "59198f070398dac9fa7f484fb510506c97ed9562",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/59198f070398dac9fa7f484fb510506c97ed9562"
+  },
+  {
+   "path": "nate-kot/fix-amend-rename-attribution.jsonl",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1aeb842dbfccef534b0af364fbe83a68cf8df72c",
+   "size": 491,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/1aeb842dbfccef534b0af364fbe83a68cf8df72c"
+  },
+  {
+   "path": "nate-kot/main.jsonl",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "08418d44328829b69fc4a9da8062ee81bd21260e",
+   "size": 384,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/08418d44328829b69fc4a9da8062ee81bd21260e"
+  },
+  {
+   "path": "nate-kot/price-opus-5-5.jsonl",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "81d49fa49710b64a400365cfc46a558e4b8ce037",
+   "size": 382,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/81d49fa49710b64a400365cfc46a558e4b8ce037"
+  },
+  {
+   "path": "natekot",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "123bcf786b39ce0a8935ba773181f179f92137fd",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/123bcf786b39ce0a8935ba773181f179f92137fd"
+  },
+  {
+   "path": "natekot/add-tkus-log.jsonl",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "c665f5bfd56ef4d5827ecb4f922c15d68658a1ef",
+   "size": 764,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/c665f5bfd56ef4d5827ecb4f922c15d68658a1ef"
+  },
+  {
+   "path": "natekot/main.jsonl",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "97308155f6ab915ade7639f857d1cf4f85ae66cf",
+   "size": 5836,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/97308155f6ab915ade7639f857d1cf4f85ae66cf"
+  }
+ ],
+ "truncated": false
+}

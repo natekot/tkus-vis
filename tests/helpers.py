@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import re
 import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
+
+from tkus_vis.model import PullRequest
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -110,3 +114,84 @@ class Outline(HTMLParser):
             self._text.append(data)
         if self._style and ("url(" in data or "@import" in data):
             self.fetches.append("css")
+
+
+API = "https://api.github.com"
+
+
+def _pr_json(repo: str, p: PullRequest) -> dict:
+    head_repo = {"full_name": f"someone/{repo.split('/')[1]}"} if p.fork else {"full_name": repo}
+    return {
+        "number": p.number,
+        "title": p.title,
+        "html_url": p.url,
+        "state": p.state,
+        "created_at": p.created_at,
+        "merged_at": p.merged_at,
+        "closed_at": p.closed_at,
+        "head": {"ref": p.head, "repo": head_repo},
+        "base": {"ref": "main", "repo": {"full_name": repo}},
+    }
+
+
+def fake_github(
+    repo, files, prs, page_size=100, default_branch="main", truncated=False, status=None
+):
+    """Serve a repository's ledger and PRs the way the GitHub REST API shapes them."""
+    blobs = {f"{i:040x}": text for i, text in enumerate(files.values(), start=1)}
+    entries = [
+        {"path": path.removeprefix(".tkus/"), "type": "blob", "sha": sha}
+        for path, sha in zip(files, blobs, strict=True)
+    ]
+    pages = [prs[i : i + page_size] for i in range(0, len(prs), page_size)] or [[]]
+    base = f"/repos/{repo}"
+    routes = {
+        base: {"default_branch": default_branch, "full_name": repo},
+        f"{base}/commits/{default_branch}": {"sha": "c" * 40, "commit": {"tree": {"sha": "root"}}},
+        f"{base}/git/trees/root": {
+            "tree": [{"path": ".tkus", "type": "tree", "sha": "tkus"}] if files else [],
+            "truncated": False,
+        },
+        f"{base}/git/trees/tkus?recursive=1": {"tree": entries, "truncated": truncated},
+    }
+    for sha, text in blobs.items():
+        content = base64.encodebytes(text.encode()).decode()  # wrapped at 76, like GitHub
+        routes[f"{base}/git/blobs/{sha}"] = {"content": content, "encoding": "base64"}
+    for n, page in enumerate(pages, start=1):
+        suffix = "" if n == 1 else f"&page={n}"
+        routes[f"{base}/pulls?state=all&per_page=100{suffix}"] = [_pr_json(repo, p) for p in page]
+
+    def fetch(url, headers):
+        fetch.requests.append((url, dict(headers)))
+        if status is not None:
+            return status[0], status[1], b'{"message": "error"}'
+        path = url.removeprefix(API)
+        if path not in routes:
+            return 404, {}, b'{"message": "Not Found"}'
+        response_headers = {}
+        if "/pulls?" in path:
+            page = int(path.split("&page=")[1]) if "&page=" in path else 1
+            if page < len(pages):
+                response_headers["Link"] = (
+                    f'<{API}{base}/pulls?state=all&per_page=100&page={page + 1}>; rel="next"'
+                )
+        return 200, response_headers, json.dumps(routes[path]).encode()
+
+    fetch.requests = []
+    return fetch
+
+
+def fixture_name(url: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "_", url.removeprefix(API + "/")).strip("_") + ".json"
+
+
+def replay(directory: Path):
+    """Serve responses recorded by tests/record_github.py."""
+
+    def fetch(url, headers):
+        path = Path(directory) / fixture_name(url)
+        if not path.is_file():
+            return 404, {}, b'{"message": "Not Found"}'
+        return 200, {}, path.read_bytes()
+
+    return fetch

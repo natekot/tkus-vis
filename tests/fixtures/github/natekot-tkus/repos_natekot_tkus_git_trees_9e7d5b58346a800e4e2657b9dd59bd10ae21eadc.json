@@ -1,0 +1,59 @@
+{
+ "sha": "9e7d5b58346a800e4e2657b9dd59bd10ae21eadc",
+ "url": "https://api.github.com/repos/natekot/tkus/git/trees/9e7d5b58346a800e4e2657b9dd59bd10ae21eadc",
+ "tree": [
+  {
+   "path": ".github",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "7f2effc852ed36cf62e9d135ef51b1adf6f82288",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/7f2effc852ed36cf62e9d135ef51b1adf6f82288"
+  },
+  {
+   "path": ".gitignore",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "21ac53e6168161fa20a3e8bb0d2c06a713c1b4ec",
+   "size": 159,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/21ac53e6168161fa20a3e8bb0d2c06a713c1b4ec"
+  },
+  {
+   "path": ".tkus",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "b70bb353e6df40b80a85272fea4752372990b548",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/b70bb353e6df40b80a85272fea4752372990b548"
+  },
+  {
+   "path": "README.md",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "b16108de7fd5e02e8f1dcd7e9a5c98c18ea4a531",
+   "size": 33874,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/b16108de7fd5e02e8f1dcd7e9a5c98c18ea4a531"
+  },
+  {
+   "path": "pyproject.toml",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1255ed72a4306cad58af66cdd8286ec606ae6e99",
+   "size": 673,
+   "url": "https://api.github.com/repos/natekot/tkus/git/blobs/1255ed72a4306cad58af66cdd8286ec606ae6e99"
+  },
+  {
+   "path": "tests",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "edbe58b4f38bba6429cebf303164023853ad87b5",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/edbe58b4f38bba6429cebf303164023853ad87b5"
+  },
+  {
+   "path": "tkus",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "d8d9cacff4f9a87c6b547b425d1f2d2de9bf1f41",
+   "url": "https://api.github.com/repos/natekot/tkus/git/trees/d8d9cacff4f9a87c6b547b425d1f2d2de9bf1f41"
+  }
+ ],
+ "truncated": false
+}
