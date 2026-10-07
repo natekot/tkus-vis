@@ -27,22 +27,23 @@ def png_size(path):
 
 
 @needs_chrome
-def test_export_writes_2x_png_and_one_page_vector_pdf(tmp_path, tkus):
+def test_export_writes_2x_pngs_and_one_vector_pdf(tmp_path, tkus):
     pages = [(s.slug, slide_html(s, chart_svg(s))) for s in tkus[:2]]
     result = export(pages, tmp_path)
     assert result.written == [
         tmp_path / "01-headline.png",
-        tmp_path / "01-headline.pdf",
         tmp_path / "02-weekly-spend.png",
-        tmp_path / "02-weekly-spend.pdf",
+        tmp_path / "slides.pdf",
     ]
     assert result.overflowing == []
     assert png_size(tmp_path / "01-headline.png") == (3840, 2160)
-    pdf = PdfReader(tmp_path / "02-weekly-spend.pdf")
-    assert len(pdf.pages) == 1
-    box = pdf.pages[0].mediabox
-    assert (round(float(box.width)), round(float(box.height))) == (1440, 810)
-    assert "Aug 17" in pdf.pages[0].extract_text()  # text stays text: vector, not a picture
+    pdf = PdfReader(tmp_path / "slides.pdf")
+    assert len(pdf.pages) == 2  # a page per slide, in order
+    for page in pdf.pages:
+        box = page.mediabox
+        assert (round(float(box.width)), round(float(box.height))) == (1440, 810)
+    assert tkus[0].title in pdf.pages[0].extract_text()
+    assert "Aug 17" in pdf.pages[1].extract_text()  # text stays text: vector, not a picture
 
 
 @needs_chrome

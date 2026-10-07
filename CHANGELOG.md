@@ -12,6 +12,8 @@ command line or the dataset.
 - With `--repo`, the HTML report links each branch to the pull request its spend went into.
   The branch table drops its Bucket and Commits columns, and each branch in the dataset lists
   its pull requests (`prs`).
+- `tkus-vis slides` writes one PDF, `slides.pdf`, with a page per slide, instead of a PDF
+  per slide.
 
 ## [0.1.0] - 2026-10-07
 

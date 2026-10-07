@@ -36,7 +36,7 @@ changes in [CHANGELOG.md](CHANGELOG.md).
 
 ```sh
 tkus-vis build --path ../my-repo -o out/report.html      # HTML report, plus report.json
-tkus-vis slides --path ../my-repo -o out/slides          # 16:9 slides as PNG and PDF
+tkus-vis slides --path ../my-repo -o out/slides          # 16:9 slides as PNGs, plus one PDF
 tkus-vis slides --repo OWNER/NAME -o out/slides          # read the ledger and PRs from GitHub
 ```
 

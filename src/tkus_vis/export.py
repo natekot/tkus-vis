@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass
 from pathlib import Path
 
 from markupsafe import Markup
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
+from pypdf import PdfWriter
 
 from . import theme
 from .render import TEMPLATES
@@ -39,10 +41,11 @@ def slide_html(slide: Slide, chart_svg: str | None) -> str:
 
 
 def export(pages: list[tuple[str, str]], out_dir: Path, executable: str | None = None) -> Exported:
-    """Print each (slug, html) page to <slug>.png (2x) and <slug>.pdf (vector)."""
+    """Print each (slug, html) page to <slug>.png (2x), and all of them to one vector slides.pdf."""
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     overflowing: list[str] = []
+    pdfs: list[bytes] = []
     launch = {"executable_path": executable} if executable else {"channel": "chrome"}
     try:
         with sync_playwright() as playwright:
@@ -58,18 +61,24 @@ def export(pages: list[tuple[str, str]], out_dir: Path, executable: str | None =
                     page.set_content(html, wait_until="load")
                     if not page.evaluate(_FITS):
                         overflowing.append(slug)
-                    png, pdf = out_dir / f"{slug}.png", out_dir / f"{slug}.pdf"
+                    png = out_dir / f"{slug}.png"
                     page.screenshot(path=str(png))
-                    page.pdf(
-                        path=str(pdf),
-                        width=f"{theme.SLIDE_WIDTH}px",
-                        height=f"{theme.SLIDE_HEIGHT}px",
-                        print_background=True,
-                        margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+                    written.append(png)
+                    pdfs.append(
+                        page.pdf(
+                            width=f"{theme.SLIDE_WIDTH}px",
+                            height=f"{theme.SLIDE_HEIGHT}px",
+                            print_background=True,
+                            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+                        )
                     )
-                    written += [png, pdf]
             finally:
                 browser.close()
     except PlaywrightError as exc:
         raise ExportError(f"can't export slides with Google Chrome: {exc}") from exc
+    deck = PdfWriter()
+    for pdf in pdfs:
+        deck.append(io.BytesIO(pdf))
+    deck.write(out_dir / "slides.pdf")
+    written.append(out_dir / "slides.pdf")
     return Exported(written, overflowing)

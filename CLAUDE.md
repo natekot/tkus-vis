@@ -39,7 +39,7 @@ uv run pytest                                   # all tests
 uv run pytest tests/test_model.py::test_real_tkus_ledger_is_pinned   # one test
 uv run ruff format && uv run ruff check         # before every commit
 uv run tkus-vis build --path ../tkus -o out/tkus.html   # a real report (out/ is ignored)
-uv run tkus-vis slides --path ../tkus -o out/slides   # slide PNG + PDF (needs Google Chrome)
+uv run tkus-vis slides --path ../tkus -o out/slides   # slide PNGs + one PDF (needs Google Chrome)
 uv run tkus-vis slides --repo natekot/tkus -o out/slides  # ledger + PRs through GitHub (read-only)
 uv run python tests/record_github.py natekot/tkus tests/fixtures/github/natekot-tkus   # re-record
 ```
@@ -54,8 +54,8 @@ defaulting to `../tkus`, and is skipped when tkus is missing.
 → `render.py` + `templates/report.html.j2` (formatting only) ← `cli.py` wires them together.
 Slides branch off the model: `story.py` (pure: each slide's numbers and takeaway sentence, pinned
 by tests) → `charts.py` (Vega-Lite specs rendered to SVG by vl-convert; the look lives in
-`theme.py`) → `export.py` + `templates/slide.html.j2` (1920×1080 HTML, printed to 2x PNG and
-vector PDF by Chrome via Playwright, flagging slides that overflow). With `--repo`, `github.py`
+`theme.py`) → `export.py` + `templates/slide.html.j2` (1920×1080 HTML, printed to 2x PNGs and
+one vector PDF by Chrome via Playwright, flagging slides that overflow). With `--repo`, `github.py`
 reads the ledger and PRs through read-only REST calls behind an injectable `fetch` (tests use
 `helpers.fake_github` and `helpers.replay`, never the network), and `model._match`/`_coverage`
 apply the spec §4 join: sanitised head refs, earliest PR still open when the usage ended, forks

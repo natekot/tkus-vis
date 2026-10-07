@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "jinja2>=3.1",
     "playwright>=1.63.0",
+    "pypdf>=6.19.0",
     "vl-convert-python>=1.9.0.post1",
 ]
 
@@ -24,7 +25,6 @@ Changelog = "https://github.com/natekot/tkus-vis/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-    "pypdf>=6.19.0",
     "pytest>=8",
     "ruff>=0.6",
 ]

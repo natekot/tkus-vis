@@ -16,7 +16,7 @@ def test_slides_writes_images_and_the_dataset(make_repo, tmp_path, capsys):
     assert slides(make_repo(tkus_ledger_files()).path, out) == 0
     stems = ("01-headline", "02-weekly-spend", "03-spend-by-model", "04-where-spend-sits")
     assert sorted(p.name for p in out.iterdir()) == sorted(
-        [f"{stem}.{ext}" for stem in stems for ext in ("png", "pdf")] + ["dataset.json"]
+        [f"{stem}.png" for stem in stems] + ["slides.pdf", "dataset.json"]
     )
     data = json.loads((out / "dataset.json").read_text(encoding="utf-8"))
     assert data["views"][0]["total"] == pytest.approx(66.9073434, abs=1e-6)

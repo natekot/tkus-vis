@@ -393,12 +393,12 @@ source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
     { name = "playwright" },
+    { name = "pypdf" },
     { name = "vl-convert-python" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "pypdf" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -407,12 +407,12 @@ dev = [
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1" },
     { name = "playwright", specifier = ">=1.63.0" },
+    { name = "pypdf", specifier = ">=6.19.0" },
     { name = "vl-convert-python", specifier = ">=1.9.0.post1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pypdf", specifier = ">=6.19.0" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
 ]

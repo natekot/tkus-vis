@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         "--data", type=Path, help="dataset JSON to write (default: the report's path with .json)"
     )
     slides = commands.add_parser(
-        "slides", parents=[source], help="write slide-ready infographics as PNG and PDF"
+        "slides", parents=[source], help="write slide-ready infographics as PNGs and one PDF"
     )
     slides.add_argument("-o", "--output", required=True, type=Path, help="directory for the slides")
     args = parser.parse_args(argv)
