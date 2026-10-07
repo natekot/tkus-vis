@@ -7,6 +7,7 @@ local clone gives (a Snapshot) plus model.PullRequest, so another host can slot 
 from __future__ import annotations
 
 import base64
+import http.client
 import json
 import os
 import re
@@ -14,6 +15,7 @@ import subprocess
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
@@ -52,7 +54,7 @@ def _urlopen(url: str, headers: dict[str, str]) -> tuple[int, dict[str, str], by
             return r.status, dict(r.headers), r.read()
     except urllib.error.HTTPError as exc:
         return exc.code, dict(exc.headers or {}), exc.read()
-    except (urllib.error.URLError, OSError) as exc:
+    except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
         raise GitHubError(f"can't reach GitHub: {exc}") from exc
 
 
@@ -82,9 +84,24 @@ class GitHub:
         url = path_or_url if path_or_url.startswith(API) else API + path_or_url
         status, headers, body = self._fetch(url, dict(self._headers))
         headers = {k.lower(): v for k, v in headers.items()}
-        if status == 200:
+        path = url.removeprefix(API)
+        if status != 200:
+            raise GitHubError(_explain(status, headers, path))
+        try:
             return json.loads(body), headers
-        raise GitHubError(_explain(status, headers, url.removeprefix(API)))
+        except ValueError as exc:
+            raise GitHubError(
+                f"GitHub's reply for {path} was not JSON (is a proxy or login page in the way?)"
+            ) from exc
+
+
+@contextmanager
+def _expected_shape(repo: str) -> Iterator[None]:
+    """A reply shaped other than the REST API documents is an error, not a traceback."""
+    try:
+        yield
+    except (KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
+        raise GitHubError(f"GitHub sent an unexpected reply for {repo}") from exc
 
 
 def _explain(status: int, headers: dict[str, str], path: str) -> str:
@@ -107,6 +124,11 @@ def read_repo(
     github: GitHub, repo: str, ref: str | None = None, default_branch: str | None = None
 ) -> Snapshot:
     """Every ledger file at one commit of a GitHub repository: ref, else the default branch."""
+    with _expected_shape(repo):
+        return _read_repo(github, repo, ref, default_branch)
+
+
+def _read_repo(github: GitHub, repo: str, ref: str | None, default_branch: str | None) -> Snapshot:
     default_branch = default_branch or github.get(f"/repos/{repo}")["default_branch"]
     ref = ref or default_branch
     commit = github.get(f"/repos/{repo}/commits/{quote(ref, safe='/')}")
@@ -131,6 +153,11 @@ def read_repo(
 
 
 def pull_requests(github: GitHub, repo: str) -> list[PullRequest]:
+    with _expected_shape(repo):
+        return _pull_requests(github, repo)
+
+
+def _pull_requests(github: GitHub, repo: str) -> list[PullRequest]:
     prs = []
     for page in github.pages(f"/repos/{repo}/pulls?state=all&per_page=100"):
         for item in page:

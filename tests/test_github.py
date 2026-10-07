@@ -1,5 +1,7 @@
+import http.client
 import re
 import subprocess
+import urllib.request
 
 import pytest
 import synthetic
@@ -59,6 +61,41 @@ def test_errors_are_explained(status, headers, message):
     gh, _ = client(status=(status, headers))
     with pytest.raises(GitHubError, match=message):
         read_repo(gh, synthetic.REPO)
+
+
+def answering(body):
+    """A fetch that answers every request with 200 and this body."""
+    return lambda url, headers: (200, {}, body)
+
+
+def test_a_reply_that_isnt_json_is_explained():
+    # A corporate proxy or captive portal answers 200 with an HTML login page.
+    gh = GitHub(None, fetch=answering(b"<html>proxy login</html>"))
+    with pytest.raises(GitHubError, match="not JSON"):
+        read_repo(gh, synthetic.REPO)
+
+
+@pytest.mark.parametrize("body", [b"{}", b"[]", b'{"default_branch": "main"}'])
+def test_a_ledger_reply_of_the_wrong_shape_is_explained(body):
+    gh = GitHub(None, fetch=answering(body))
+    with pytest.raises(GitHubError, match="unexpected"):
+        read_repo(gh, synthetic.REPO)
+
+
+@pytest.mark.parametrize("body", [b'{"message": "Moved"}', b'[{"title": "no number"}]', b"[1]"])
+def test_a_pull_request_reply_of_the_wrong_shape_is_explained(body):
+    gh = GitHub(None, fetch=answering(body))
+    with pytest.raises(GitHubError, match="unexpected"):
+        pull_requests(gh, synthetic.REPO)
+
+
+def test_a_connection_dropped_mid_reply_is_explained(monkeypatch):
+    def dropped(*args, **kwargs):
+        raise http.client.IncompleteRead(b"partial")
+
+    monkeypatch.setattr(urllib.request, "urlopen", dropped)
+    with pytest.raises(GitHubError, match="can't reach GitHub"):
+        github._urlopen(f"{github.API}/repos/a/b", {})
 
 
 def test_the_token_is_sent_and_never_leaks():
