@@ -207,15 +207,18 @@ def _histogram(slide: Slide) -> dict:
                 "encoding": {"x": {"datum": middle}},
             },
             {
+                # Above the plot, so the label never sits on a bar.
                 "mark": {
                     "type": "text",
-                    "align": "left",
-                    "baseline": "top",
-                    "dx": 10,
-                    "y": 0,
+                    "align": "center",
+                    "baseline": "bottom",
                     "fontWeight": "bold",
                 },
-                "encoding": {"x": {"datum": middle}, "text": {"value": label}},
+                "encoding": {
+                    "x": {"datum": middle},
+                    "y": {"value": -12},
+                    "text": {"value": label},
+                },
             },
         ],
     }
@@ -258,10 +261,13 @@ def _throughput(slide: Slide) -> dict:
             },
         ],
     }
-    counts = [
-        {"week": k, "count": n, "series": series}
+    counts = [  # empty weeks draw nothing: a zero-height segment would nick the baseline
+        {"week": k, "count": n, "series": series, "rank": rank}
         for k, _label, with_cost, without in slide.merges
-        for n, series in ((with_cost, "With cost data"), (without, "No cost data"))
+        for rank, (n, series) in enumerate(
+            ((with_cost, "With cost data"), (without, "No cost data"))
+        )
+        if n
     ]
     merged = {
         "width": _CONCAT_WIDTH,
@@ -284,8 +290,10 @@ def _throughput(slide: Slide) -> dict:
                     "domain": ["With cost data", "No cost data"],
                     "range": [theme.ACCENT, theme.DEEMPHASIS],
                 },
-                "legend": {"title": None, "orient": "top", "direction": "horizontal"},
+                # Beneath its own chart, not above the spend chart it doesn't describe.
+                "legend": {"title": None, "orient": "bottom", "direction": "horizontal"},
             },
+            "order": {"field": "rank", "sort": "ascending"},  # cost data at the base
         },
     }
     return {

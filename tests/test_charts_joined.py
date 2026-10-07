@@ -45,3 +45,20 @@ def test_throughput_is_two_charts_on_one_time_axis_never_two_y_axes(deck):
     texts = drawn(svg)
     assert "Sep 7" in texts and "With cost data" in texts and "$20.00 †" in texts
     assert width(svg) <= theme.CHART_WIDTH
+
+
+def test_axis_titles_are_slide_sized():
+    axis = theme.vega_config()["axis"]
+    assert (axis["titleFontSize"], axis["titleColor"]) == (theme.AXIS_SIZE, theme.INK_SECONDARY)
+
+
+def test_the_median_label_sits_above_the_bars_not_on_them(deck):
+    label = chart_spec(deck["cost-per-pr"])["layer"][2]
+    assert label["mark"]["baseline"] == "bottom" and label["encoding"]["y"]["value"] < 0
+
+
+def test_merged_pr_counts_stack_cost_data_first_and_skip_empty_weeks(deck):
+    merged = chart_spec(deck["spend-and-prs"])["vconcat"][1]
+    assert all(row["count"] > 0 for row in merged["data"]["values"])
+    assert merged["encoding"]["order"]["field"] == "rank"
+    assert merged["encoding"]["color"]["legend"]["orient"] == "bottom"  # beside its own chart
