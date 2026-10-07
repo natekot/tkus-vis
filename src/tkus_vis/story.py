@@ -118,7 +118,9 @@ def slides_for(dataset: Dataset, view: CurrencyView) -> list[Slide]:
             slides.append(_cost_per_pr(dataset, view, merged, source))
         if merged:
             slides.append(_top_prs(dataset, view, merged, source))
-        if not dataset.coverage.merged and weeks:  # Task 5 adds the throughput slide here
+        if dataset.coverage.merged:
+            slides.append(_throughput(dataset, view, source))
+        elif weeks:
             slides.append(_weekly(view, weeks, source))
         slides += [_models(view, source), _where_joined(dataset, view, source)]
     slides = [
@@ -489,5 +491,62 @@ def _where_joined(dataset: Dataset, view: CurrencyView, source: str) -> Slide:
         currency=view.currency,
         bars=tuple(bars),
         legend=legend,
+        footnotes=tuple(notes),
+    )
+
+
+def _throughput(dataset: Dataset, view: CurrencyView, source: str) -> Slide:
+    cov = dataset.coverage
+    spend = {w.week: w.usd for w in view.weeks if w.week != "unknown"}
+    merges = {m.week: m for m in cov.weekly}
+    first = week_of(cov.since)
+    last = max([first, *spend, *merges])
+    weeks, monday = [], date.fromisoformat(first)
+    while monday <= date.fromisoformat(last):
+        weeks.append(monday.isoformat())
+        monday += timedelta(weeks=1)
+    backlog_weeks = {week_of(a.until or a.at) for a in view.audit if a.backlog}
+    peak = max(weeks, key=lambda k: spend.get(k, 0.0))
+    bars = []
+    for k in weeks:
+        value = money(spend.get(k, 0.0), view.currency) if k == peak and spend.get(k) else ""
+        if k in backlog_weeks:
+            value = f"{value} †".strip()
+        bars.append(Bar(day(date.fromisoformat(k)), spend.get(k, 0.0), value, key=k))
+    rows = tuple(
+        (
+            k,
+            day(date.fromisoformat(k)),
+            merges[k].with_cost if k in merges else 0,
+            merges[k].merged - merges[k].with_cost if k in merges else 0,
+        )
+        for k in weeks
+    )
+    busiest = max(cov.weekly, key=lambda m: m.merged)  # the earliest of equal weeks
+    title = (
+        f"{cov.merged} {_noun(cov.merged, 'PR', 'PRs')} merged in {len(weeks)} "
+        f"{_noun(len(weeks), 'week', 'weeks')}; the busiest week was "
+        f"{day(date.fromisoformat(busiest.week))}, with {busiest.merged}"
+    )
+    notes = []
+    if backlog_weeks & set(weeks):
+        notes.append("† " + _backlog(view))
+    if any(r[3] for r in rows):
+        notes.append(
+            "Gray: merged PRs with no cost data, such as PRs from forks or from branches "
+            "tkus didn't record."
+        )
+    notes.append(source)
+    return Slide(
+        slug="spend-and-prs",
+        kind="throughput",
+        title=title,
+        subtitle=(
+            "Spend counted when each commit's usage window ended; PRs counted when merged "
+            "(weeks start Monday, UTC)"
+        ),
+        currency=view.currency,
+        bars=tuple(bars),
+        merges=rows,
         footnotes=tuple(notes),
     )

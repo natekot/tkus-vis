@@ -1,0 +1,47 @@
+import re
+
+import pytest
+import synthetic
+
+from tkus_vis import theme
+from tkus_vis.charts import chart_spec, chart_svg
+from tkus_vis.ledger import Snapshot
+from tkus_vis.model import build_dataset
+from tkus_vis.story import slides_for
+
+
+def drawn(svg):
+    return re.findall(r"<text[^>]*>([^<]*)</text>", svg)
+
+
+def width(svg):
+    return float(re.search(r'width="([\d.]+)"', svg).group(1))
+
+
+@pytest.fixture(scope="module")
+def deck():
+    snapshot = Snapshot(synthetic.REPO, "main", "c" * 40, "main", synthetic.FILES)
+    dataset, _ = build_dataset(snapshot, "t", synthetic.PRS)
+    return {s.slug.split("-", 1)[1]: s for s in slides_for(dataset, dataset.views[0])}
+
+
+def test_histogram_bins_costs_and_marks_the_median(deck):
+    spec = chart_spec(deck["cost-per-pr"])
+    bars, rule, label = spec["layer"]
+    assert bars["encoding"]["x"]["bin"] and bars["encoding"]["y"]["aggregate"] == "count"
+    assert rule["encoding"]["x"]["datum"] == 5.5
+    assert label["encoding"]["text"]["value"] == "median $5.50"
+    svg = chart_svg(deck["cost-per-pr"])
+    assert "median $5.50" in drawn(svg) and width(svg) <= theme.CHART_WIDTH
+
+
+def test_throughput_is_two_charts_on_one_time_axis_never_two_y_axes(deck):
+    spec = chart_spec(deck["spend-and-prs"])
+    assert len(spec["vconcat"]) == 2
+    assert spec["resolve"]["scale"]["x"] == "shared"
+    color = spec["vconcat"][1]["encoding"]["color"]
+    assert color["scale"]["domain"] == ["With cost data", "No cost data"]
+    svg = chart_svg(deck["spend-and-prs"])
+    texts = drawn(svg)
+    assert "Sep 7" in texts and "With cost data" in texts and "$20.00 †" in texts
+    assert width(svg) <= theme.CHART_WIDTH

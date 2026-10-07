@@ -2,7 +2,7 @@ import json
 
 import pytest
 import synthetic
-from helpers import FIXTURES, fake_github, replay
+from helpers import FIXTURES, fake_github, needs_chrome, replay
 
 from tkus_vis import github
 from tkus_vis.cli import main
@@ -76,3 +76,17 @@ def test_a_missing_token_warns_and_carries_on(monkeypatch, tmp_path, capsys):
     )
     assert main(["build", "--repo", synthetic.REPO, "-o", str(tmp_path / "r.html")]) == 0
     assert "no GitHub token" in capsys.readouterr().err
+
+
+@needs_chrome
+def test_slides_with_repo_write_the_joined_deck(synthetic_github, tmp_path):
+    out = tmp_path / "slides"
+    assert main(["slides", "--repo", synthetic.REPO, "-o", str(out)]) == 0
+    assert sorted(p.stem for p in out.glob("*.png")) == [
+        "01-headline",
+        "02-cost-per-pr",
+        "03-top-prs",
+        "04-spend-and-prs",
+        "05-spend-by-model",
+        "06-where-spend-sits",
+    ]

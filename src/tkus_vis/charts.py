@@ -14,6 +14,7 @@ from .story import Slide
 _PLOT_WIDTH = theme.CHART_WIDTH - 80
 _MAX_X_LABELS = 12
 _LEGEND_ROOM = 72  # height a top legend takes in a bar chart
+_CONCAT_WIDTH = theme.CHART_WIDTH - 160  # room for both y-axes' labels and titles
 
 
 def _thickness(space: float, count: int) -> int:
@@ -26,6 +27,10 @@ def chart_spec(slide: Slide) -> dict | None:
         return _columns(slide)
     if slide.kind == "bars":
         return _bars(slide)
+    if slide.kind == "histogram":
+        return _histogram(slide)
+    if slide.kind == "throughput":
+        return _throughput(slide)
     return None
 
 
@@ -44,10 +49,19 @@ def _base(values: list[dict], height: int) -> dict:
     }
 
 
-def _money_format(slide: Slide) -> str:
-    top = max((b.usd for b in slide.bars), default=0.0)
+def _money_format(top: float, currency: str) -> str:
     decimals = 0 if top >= 10 else 2
-    return f"{'$' if slide.currency == 'USD' else ''},.{decimals}f"
+    return f"{'$' if currency == 'USD' else ''},.{decimals}f"
+
+
+def _top(slide: Slide) -> float:
+    return max((b.usd for b in slide.bars), default=0.0)
+
+
+def _week_axis(keys: list[str], labels: dict[str, str]) -> tuple[list[str], str]:
+    """The weeks to label (every stride-th, ending on the latest) and the label lookup."""
+    stride = math.ceil(len(keys) / _MAX_X_LABELS)
+    return keys[::-1][::stride][::-1], f"{json.dumps(labels)}[datum.value]"
 
 
 def _columns(slide: Slide) -> dict:
@@ -55,10 +69,9 @@ def _columns(slide: Slide) -> dict:
         {"week": b.key or b.label, "label": b.label, "usd": b.usd, "value": b.value}
         for b in slide.bars
     ]
-    # Label every stride-th week, counting back from the latest so it is always labelled.
-    stride = math.ceil(len(values) / _MAX_X_LABELS)
-    shown = [v["week"] for v in values][::-1][::stride][::-1]
-    names = json.dumps({v["week"]: v["label"] for v in values})
+    shown, label_expr = _week_axis(
+        [v["week"] for v in values], {v["week"]: v["label"] for v in values}
+    )
     return {
         **_base(values, theme.CHART_HEIGHT),
         "encoding": {
@@ -67,13 +80,17 @@ def _columns(slide: Slide) -> dict:
                 "type": "ordinal",
                 "sort": None,
                 "title": None,
-                "axis": {"labelAngle": 0, "values": shown, "labelExpr": f"{names}[datum.value]"},
+                "axis": {"labelAngle": 0, "values": shown, "labelExpr": label_expr},
             },
             "y": {
                 "field": "usd",
                 "type": "quantitative",
                 "title": None,
-                "axis": {"format": _money_format(slide), "tickCount": 5, "domain": False},
+                "axis": {
+                    "format": _money_format(_top(slide), slide.currency),
+                    "tickCount": 5,
+                    "domain": False,
+                },
             },
         },
         "layer": [
@@ -152,4 +169,128 @@ def _bars(slide: Slide) -> dict:
                 "encoding": {"text": {"field": "value"}},
             },
         ],
+    }
+
+
+def _histogram(slide: Slide) -> dict:
+    middle, label = slide.rule
+    values = [{"usd": v} for v in slide.values]
+    x_axis = {"format": _money_format(max(slide.values), slide.currency), "labelAngle": 0}
+    return {
+        **_base(values, theme.CHART_HEIGHT),
+        "layer": [
+            {
+                "mark": {
+                    "type": "bar",
+                    "color": theme.ACCENT,
+                    "cornerRadiusEnd": theme.CORNER,
+                    "binSpacing": 4,
+                },
+                "encoding": {
+                    "x": {
+                        "field": "usd",
+                        "type": "quantitative",
+                        "bin": {"maxbins": 15},
+                        "title": "AI cost per merged PR",
+                        "axis": x_axis,
+                    },
+                    "y": {
+                        "aggregate": "count",
+                        "type": "quantitative",
+                        "title": "Merged PRs",
+                        "axis": {"format": "d", "tickMinStep": 1, "domain": False},
+                    },
+                },
+            },
+            {
+                "mark": {"type": "rule", "color": theme.INK, "strokeWidth": 2},
+                "encoding": {"x": {"datum": middle}},
+            },
+            {
+                "mark": {
+                    "type": "text",
+                    "align": "left",
+                    "baseline": "top",
+                    "dx": 10,
+                    "y": 0,
+                    "fontWeight": "bold",
+                },
+                "encoding": {"x": {"datum": middle}, "text": {"value": label}},
+            },
+        ],
+    }
+
+
+def _throughput(slide: Slide) -> dict:
+    keys = [b.key for b in slide.bars]
+    shown, label_expr = _week_axis(keys, {b.key: b.label for b in slide.bars})
+    size = _thickness(_CONCAT_WIDTH, len(keys))
+    x = {"field": "week", "type": "ordinal", "sort": keys, "title": None}
+    spend = {
+        "width": _CONCAT_WIDTH,
+        "height": 250,
+        "data": {"values": [{"week": b.key, "usd": b.usd, "value": b.value} for b in slide.bars]},
+        "encoding": {
+            "x": {**x, "axis": {"labels": False, "ticks": False}},
+            "y": {
+                "field": "usd",
+                "type": "quantitative",
+                "title": "AI spend",
+                "axis": {
+                    "format": _money_format(_top(slide), slide.currency),
+                    "tickCount": 4,
+                    "domain": False,
+                },
+            },
+        },
+        "layer": [
+            {
+                "mark": {
+                    "type": "bar",
+                    "color": theme.ACCENT,
+                    "size": size,
+                    "cornerRadiusEnd": theme.CORNER,
+                }
+            },
+            {
+                "mark": {"type": "text", "baseline": "bottom", "dy": -10, "fontWeight": "bold"},
+                "encoding": {"text": {"field": "value"}},
+            },
+        ],
+    }
+    counts = [
+        {"week": k, "count": n, "series": series}
+        for k, _label, with_cost, without in slide.merges
+        for n, series in ((with_cost, "With cost data"), (without, "No cost data"))
+    ]
+    merged = {
+        "width": _CONCAT_WIDTH,
+        "height": 190,
+        "data": {"values": counts},
+        # Stacked segments are separated by a surface-colored gap, not rounded (dataviz).
+        "mark": {"type": "bar", "size": size, "stroke": theme.SURFACE, "strokeWidth": 3},
+        "encoding": {
+            "x": {**x, "axis": {"labelAngle": 0, "values": shown, "labelExpr": label_expr}},
+            "y": {
+                "field": "count",
+                "type": "quantitative",
+                "title": "PRs merged",
+                "axis": {"format": "d", "tickMinStep": 1, "domain": False},
+            },
+            "color": {
+                "field": "series",
+                "type": "nominal",
+                "scale": {
+                    "domain": ["With cost data", "No cost data"],
+                    "range": [theme.ACCENT, theme.DEEMPHASIS],
+                },
+                "legend": {"title": None, "orient": "top", "direction": "horizontal"},
+            },
+        },
+    }
+    return {
+        "config": theme.vega_config(),
+        "spacing": 40,
+        "vconcat": [spend, merged],
+        "resolve": {"scale": {"x": "shared"}},
     }

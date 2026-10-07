@@ -28,11 +28,11 @@ def deck():
 
 
 def test_the_joined_deck_order(deck):
-    # Task 5 adds "spend-and-prs" after "top-prs" and updates this list.
     assert list(deck) == [
         "headline",
         "cost-per-pr",
         "top-prs",
+        "spend-and-prs",
         "spend-by-model",
         "where-spend-sits",
     ]
@@ -97,3 +97,33 @@ def test_with_no_merged_prs_the_deck_says_so():
     assert "No pull requests were merged since Sep 1." in deck["headline"].footnotes
     # Only #15 (open) matches: unmatched = 49.50 - 2.00 direct - 7.00 open = 40.50, or 82%.
     assert deck["where-spend-sits"].title == "82% of spend has no pull request"
+
+
+def test_spend_and_merged_prs_by_week(deck):
+    s = deck["spend-and-prs"]
+    assert s.kind == "throughput"
+    assert s.title == "6 PRs merged in 5 weeks; the busiest week was Sep 7, with 3"
+    assert s.subtitle == (
+        "Spend counted when each commit's usage window ended; PRs counted when merged "
+        "(weeks start Monday, UTC)"
+    )
+    assert [(b.label, b.usd, b.value) for b in s.bars] == [
+        ("Aug 31", 15.0, ""),
+        ("Sep 7", 20.0, "$20.00 †"),  # the peak, and the backlog week
+        ("Sep 14", 6.0, ""),
+        ("Sep 21", 7.0, ""),
+        ("Sep 28", 1.5, ""),
+    ]
+    assert s.merges == (
+        ("2026-08-31", "Aug 31", 2, 0),
+        ("2026-09-07", "Sep 7", 1, 2),
+        ("2026-09-14", "Sep 14", 0, 0),
+        ("2026-09-21", "Sep 21", 1, 0),
+        ("2026-09-28", "Sep 28", 0, 0),
+    )
+    assert s.footnotes == (
+        "† " + BACKLOG,
+        "Gray: merged PRs with no cost data, such as PRs from forks or from branches "
+        "tkus didn't record.",
+        SOURCE,
+    )
