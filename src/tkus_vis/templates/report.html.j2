@@ -97,7 +97,7 @@ code { font-size: 0.9em; overflow-wrap: anywhere; }
 <table>
 <thead><tr><th>Where the spend sits</th>{% for v in d.views %}<th class="num">{{ v.currency }}</th>{% endfor %}</tr></thead>
 <tbody>
-{% for key, label in labels.items() %}
+{% for key, label in labels.items() if key in d.views[0].buckets %}
 <tr><td>{{ label }}</td>{% for v in d.views %}<td class="num">{{ v.buckets[key]|money }}</td>{% endfor %}</tr>
 {% endfor %}
 <tr><th>Everything in the ledger</th>{% for v in d.views %}<th class="num">{{ v.total|money }}</th>{% endfor %}</tr>

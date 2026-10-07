@@ -8,11 +8,14 @@ from dataclasses import asdict
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from . import __version__
-from .model import DIRECT, UNJOINED, Dataset
+from .model import DIRECT, PARTIAL, PR, UNJOINED, UNMATCHED, Dataset
 
 BUCKET_LABELS = {
     DIRECT: "Direct to default branch",
     UNJOINED: "Other branches (not yet matched to PRs)",
+    PR: "In pull requests",
+    UNMATCHED: "No pull request found",
+    PARTIAL: "Partly in pull requests",
 }
 
 # autoescape: branch and model names come from analysed repositories, so they're untrusted.
